@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Contributions - Praise Team Kitty{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Weekly Contributions</h2>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Record Contribution</h5>
+            </div>
+            <div class="card-body">
+                <form action="/record_contribution" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Select Member *</label>
+                        <select class="form-select" name="member_id" required>
+                            <option value="">Choose member...</option>
+                            {% for member in members %}
+                                <option value="{{ member['id'] }}" 
+                                    {% if member['id'] in paid_ids %}disabled{% endif %}>
+                                    {{ member['name'] }} {% if member['id'] in paid_ids %}(Paid){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount (KSH)</label>
+                        <input type="number" class="form-control" name="amount" value="50" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Week Starting</label>
+                        <input type="date" class="form-control" name="week_start" value="{{ current_week }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-circle"></i> Record Payment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Recent Contributions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Amount</th>
+                                <th>Week</th>
+                                <th>Date Paid</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in history %}
+                            <tr>
+                                <td>{{ record['name'] }}</td>
+                                <td>KSH {{ "%.0f"|format(record['amount']) }}</td>
+                                <td>{{ record['week_start'] }}</td>
+                                <td>{{ record['date_paid'] }}</td>
+                                <td>
+                                    <a href="/delete_contribution/{{ record['id'] }}" 
+                                       class="btn btn-sm btn-danger"
+                                       onclick="return confirm('Delete this contribution?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">No contributions recorded yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

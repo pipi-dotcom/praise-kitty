@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Praise Team Kitty{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Contributions</h6>
+                <h3 class="mb-0">KSH {{ "%.2f"|format(total_contributions) }}</h3>
+                <small>All time</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card stat-card bg-danger text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Expenses</h6>
+                <h3 class="mb-0">KSH {{ "%.2f"|format(total_expenses) }}</h3>
+                <small>All time</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <h6 class="card-title">Current Balance</h6>
+                <h3 class="mb-0">KSH {{ "%.2f"|format(balance) }}</h3>
+                <small>Available</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <h6 class="card-title">Active Members</h6>
+                <h3 class="mb-0">{{ active_members }}</h3>
+                <small>Contributors</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-cash"></i> Recent Contributions</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for contribution in recent_contributions %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ contribution['name'] }}</strong>
+                                <small class="text-muted d-block">{{ contribution['date_paid'] }}</small>
+                            </div>
+                            <span class="badge bg-success">KSH {{ "%.0f"|format(contribution['amount']) }}</span>
+                        </li>
+                    {% else %}
+                        <li class="list-group-item text-center text-muted">No contributions yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-receipt"></i> Recent Expenses</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for expense in recent_expenses %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ expense['description'] }}</strong>
+                                <small class="text-muted d-block">{{ expense['expense_date'] }}</small>
+                            </div>
+                            <span class="badge bg-danger">KSH {{ "%.0f"|format(expense['amount']) }}</span>
+                        </li>
+                    {% else %}
+                        <li class="list-group-item text-center text-muted">No expenses yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
