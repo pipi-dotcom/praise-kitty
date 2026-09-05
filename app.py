@@ -330,7 +330,6 @@ def reports():
                          months=json.dumps(months),
                          contributions_amounts=json.dumps(contributions_amounts),
                          expenses_amounts=json.dumps(expenses_amounts))
-
+init_db()
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
