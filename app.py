@@ -113,7 +113,7 @@ def get_total_expenses():
 def get_active_members_count():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT COUNT(*) as count FROM members WHERE status='active'")
+    cur.execute("SELECT COUNT(*) as count FROM members WHERE status='active' AND is_admin = FALSE")
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -220,13 +220,14 @@ def index():
 def members():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute('''
-        SELECT m.*,
-               (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-               (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
-        FROM members m
-        ORDER BY m.name
-    ''')
+ cur.execute('''
+    SELECT m.*,
+           (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+           (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
+    FROM members m
+    WHERE m.is_admin = FALSE
+    ORDER BY m.name
+''')
     members_list = cur.fetchall()
     cur.close()
     conn.close()
@@ -311,7 +312,7 @@ def contributions():
     current_week = get_current_week_start()
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM members WHERE status='active' ORDER BY name")
+    cur.execute("SELECT * FROM members WHERE status='active' AND is_admin = FALSE ORDER BY name")
     members_list = cur.fetchall()
 
     cur.execute('''
@@ -472,6 +473,7 @@ def reports():
                SUM(c.amount) as total_paid
         FROM members m
         LEFT JOIN contributions c ON m.id = c.member_id
+        WHERE m.is_admin = FALSE
         GROUP BY m.id
         ORDER BY total_paid DESC
     ''')
