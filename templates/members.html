@@ -25,7 +25,11 @@
         <tbody>
             {% for member in members %}
             <tr>
-                <td>{{ member['name'] }}</td>
+                <td>
+    <a href="/member/{{ member['id'] }}" class="text-decoration-none">
+        {{ member['name'] }}
+    </a>
+</td>
                 <td>{{ member['phone'] or '-' }}</td>
                 <td>KSH {{ "%.0f"|format(member['total_paid']) }}</td>
                 <td>{{ member['weeks_paid'] }} weeks</td>

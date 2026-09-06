@@ -128,6 +128,38 @@ def members():
     cur.close()
     conn.close()
     return render_template('members.html', members=members_list)
+@app.route('/member/<int:member_id>')
+def member_detail(member_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Get member info and totals
+    cur.execute('''
+        SELECT m.*,
+               (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+               (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
+        FROM members m
+        WHERE m.id = %s
+    ''', (member_id,))
+    member = cur.fetchone()
+    
+    if not member:
+        flash('Member not found!', 'error')
+        return redirect(url_for('members'))
+    
+    # Get all contributions for this member
+    cur.execute('''
+        SELECT id, amount, week_start, date_paid
+        FROM contributions
+        WHERE member_id = %s
+        ORDER BY week_start DESC
+    ''', (member_id,))
+    contributions = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return render_template('member_detail.html', member=member, contributions=contributions)
 
 @app.route('/add_member', methods=['POST'])
 def add_member():
