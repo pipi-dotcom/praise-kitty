@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard - Praise Team Kitty{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Welcome, {{ member['name'] }}!</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4 col-6">
+        <div class="card stat-card bg-royal-blue">
+            <div class="card-body">
+                <h6 class="card-title">Total Paid</h6>
+                <h3 class="mb-0">KSH {{ "%.0f"|format(total_paid) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="card stat-card bg-mustard-yellow">
+            <div class="card-body">
+                <h6 class="card-title">Weeks Paid</h6>
+                <h3 class="mb-0">{{ weeks_paid }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-royal-blue">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> My Contribution History</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Week Starting</th>
+                        <th>Amount</th>
+                        <th>Date Paid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contrib in contributions %}
+                    <tr>
+                        <td>{{ contrib['week_start'] }}</td>
+                        <td>KSH {{ "%.0f"|format(contrib['amount']) }}</td>
+                        <td>{{ contrib['date_paid'] }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center">No contributions recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

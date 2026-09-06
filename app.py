@@ -1,3 +1,6 @@
+from flask import session, g
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import os
 import psycopg2
 import psycopg2.extras
@@ -6,6 +9,27 @@ from datetime import datetime, timedelta
 import json
 
 app = Flask(__name__)
+# Decorators
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in first.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in first.', 'error')
+            return redirect(url_for('login'))
+        if not session.get('is_admin'):
+            flash('You do not have permission to access that page.', 'error')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 app.secret_key = os.environ.get('SECRET_KEY', 'praise-team-kitty-2024')
 
 def get_db():
@@ -15,15 +39,26 @@ def get_db():
 def init_db():
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             phone TEXT,
+            username TEXT UNIQUE,
+            password_hash TEXT,
+            is_admin BOOLEAN DEFAULT FALSE,
             join_date DATE DEFAULT CURRENT_DATE,
             status TEXT DEFAULT 'active'
         )
     ''')
+
+    # In case table exists from earlier, add columns if missing
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS username TEXT UNIQUE")
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS password_hash TEXT")
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE")
+
+    # Create contributions and expenses tables (unchanged)
     cur.execute('''
         CREATE TABLE IF NOT EXISTS contributions (
             id SERIAL PRIMARY KEY,
@@ -44,6 +79,15 @@ def init_db():
             date_recorded TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Create default admin user if not exists
+    cur.execute("SELECT id FROM members WHERE username = 'admin'")
+    if not cur.fetchone():
+        cur.execute('''
+            INSERT INTO members (name, username, password_hash, is_admin)
+            VALUES ('Admin', 'admin', %s, TRUE)
+        ''', (generate_password_hash('admin123'),))
+
     conn.commit()
     cur.close()
     conn.close()
@@ -78,8 +122,66 @@ def get_active_members_count():
 def get_current_week_start():
     today = datetime.now()
     return (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM members WHERE username = %s", (username,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
 
+        if user and check_password_hash(user['password_hash'], password):
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['is_admin'] = user['is_admin']
+            flash('Logged in successfully!', 'success')
+            if user['is_admin']:
+                return redirect(url_for('index'))
+            else:
+                return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password.', 'error')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    user_id = session['user_id']
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM members WHERE id = %s", (user_id,))
+    member = cur.fetchone()
+    
+    cur.execute('''
+        SELECT id, amount, week_start, date_paid
+        FROM contributions
+        WHERE member_id = %s
+        ORDER BY week_start DESC
+    ''', (user_id,))
+    contributions = cur.fetchall()
+    
+    cur.execute("SELECT COALESCE(SUM(amount), 0) as total_paid FROM contributions WHERE member_id = %s", (user_id,))
+    total_paid = cur.fetchone()['total_paid']
+    
+    cur.execute("SELECT COUNT(*) as weeks_paid FROM contributions WHERE member_id = %s", (user_id,))
+    weeks_paid = cur.fetchone()['weeks_paid']
+    
+    cur.close()
+    conn.close()
+    
+    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid)
 @app.route('/')
+@admin_required
 def index():
     total_contributions = get_total_contributions()
     total_expenses = get_total_expenses()
@@ -114,6 +216,7 @@ def index():
                          recent_expenses=recent_expenses)
 
 @app.route('/members')
+@admin_required
 def members():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -129,6 +232,7 @@ def members():
     conn.close()
     return render_template('members.html', members=members_list)
 @app.route('/member/<int:member_id>')
+@admin_required
 def member_detail(member_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -162,24 +266,35 @@ def member_detail(member_id):
     return render_template('member_detail.html', member=member, contributions=contributions)
 
 @app.route('/add_member', methods=['POST'])
+@app.route('/add_member', methods=['POST'])
+@admin_required
 def add_member():
     name = request.form.get('name')
     phone = request.form.get('phone', '')
-
-    if name:
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    if name and username and password:
+        hashed = generate_password_hash(password)
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("INSERT INTO members (name, phone) VALUES (%s, %s)", (name, phone))
-        conn.commit()
-        cur.close()
-        conn.close()
-        flash('Member added successfully!', 'success')
+        try:
+            cur.execute("INSERT INTO members (name, phone, username, password_hash) VALUES (%s, %s, %s, %s)",
+                        (name, phone, username, hashed))
+            conn.commit()
+            flash('Member added successfully! They can log in with their username and password.', 'success')
+        except Exception as e:
+            conn.rollback()
+            flash('Error: Username may already exist. Please choose a different username.', 'error')
+        finally:
+            cur.close()
+            conn.close()
     else:
-        flash('Member name is required!', 'error')
-
+        flash('Name, username, and password are required!', 'error')
     return redirect(url_for('members'))
 
 @app.route('/delete_member/<int:member_id>')
+@admin_required
 def delete_member(member_id):
     conn = get_db()
     cur = conn.cursor()
@@ -191,6 +306,7 @@ def delete_member(member_id):
     return redirect(url_for('members'))
 
 @app.route('/contributions')
+@admin_required
 def contributions():
     current_week = get_current_week_start()
     conn = get_db()
@@ -223,6 +339,7 @@ def contributions():
                          history=history)
 
 @app.route('/record_contribution', methods=['POST'])
+@admin_required
 def record_contribution():
     member_id = request.form.get('member_id')
     amount = request.form.get('amount', 50)
@@ -254,6 +371,7 @@ def record_contribution():
     return redirect(url_for('contributions'))
 
 @app.route('/delete_contribution/<int:contribution_id>')
+@admin_required
 def delete_contribution(contribution_id):
     conn = get_db()
     cur = conn.cursor()
@@ -265,6 +383,7 @@ def delete_contribution(contribution_id):
     return redirect(url_for('contributions'))
 
 @app.route('/expenses')
+@admin_required
 def expenses():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -288,6 +407,7 @@ def expenses():
                          categories=categories)
 
 @app.route('/add_expense', methods=['POST'])
+@admin_required
 def add_expense():
     description = request.form.get('description')
     amount = request.form.get('amount')
@@ -312,6 +432,7 @@ def add_expense():
     return redirect(url_for('expenses'))
 
 @app.route('/delete_expense/<int:expense_id>')
+@admin_required
 def delete_expense(expense_id):
     conn = get_db()
     cur = conn.cursor()
@@ -323,6 +444,7 @@ def delete_expense(expense_id):
     return redirect(url_for('expenses'))
 
 @app.route('/reports')
+@admin_required
 def reports():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)

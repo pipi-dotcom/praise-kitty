@@ -20,22 +20,21 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/"><i class="bi bi-house"></i> Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/members"><i class="bi bi-people"></i> Members</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/contributions"><i class="bi bi-cash"></i> Contributions</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/expenses"><i class="bi bi-receipt"></i> Expenses</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/reports"><i class="bi bi-graph-up"></i> Reports</a>
-                    </li>
-                </ul>
+    {% if 'user_id' in session %}
+        {% if session.get('is_admin') %}
+            <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="/members"><i class="bi bi-people"></i> Members</a></li>
+            <li class="nav-item"><a class="nav-link" href="/contributions"><i class="bi bi-cash"></i> Contributions</a></li>
+            <li class="nav-item"><a class="nav-link" href="/expenses"><i class="bi bi-receipt"></i> Expenses</a></li>
+            <li class="nav-item"><a class="nav-link" href="/reports"><i class="bi bi-graph-up"></i> Reports</a></li>
+        {% else %}
+            <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2"></i> My Dashboard</a></li>
+        {% endif %}
+        <li class="nav-item"><a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> Logout ({{ session['username'] }})</a></li>
+    {% else %}
+        <li class="nav-item"><a class="nav-link" href="/login"><i class="bi bi-box-arrow-in-right"></i> Login</a></li>
+    {% endif %}
+</ul>
             </div>
         </div>
     </nav>
