@@ -220,7 +220,7 @@ def index():
 def members():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
- cur.execute('''
+    cur.execute('''
     SELECT m.*,
            (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
            (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
