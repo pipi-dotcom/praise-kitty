@@ -6,6 +6,9 @@ import psycopg2
 import psycopg2.extras
 from flask import Flask, render_template, request, redirect, url_for, flash
 from datetime import datetime, timedelta
+import csv
+from io import StringIO
+from flask import Response
 import json
 
 app = Flask(__name__)
@@ -662,5 +665,83 @@ def admin_profile():
         return redirect(url_for('admin_profile'))
 
     return render_template('admin_profile.html', admin=admin)
+@app.route('/export_contributions')
+@admin_required
+def export_contributions():
+    # Connect to the database
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # Get all contributions with member details
+    cur.execute('''
+        SELECT m.name, m.phone, m.username, c.amount, c.week_start, c.date_paid
+        FROM contributions c
+        JOIN members m ON c.member_id = m.id
+        ORDER BY c.date_paid DESC
+    ''')
+    rows = cur.fetchall()   # List of dictionaries
+    cur.close()
+    conn.close()
+
+    # Create an in-memory text buffer for CSV
+    si = StringIO()
+    cw = csv.writer(si)
+
+    # Write header row
+    cw.writerow(['Member Name', 'Phone', 'Username', 'Amount (KSH)', 'Week Starting', 'Date Paid'])
+
+    # Write each row from the database
+    for row in rows:
+        cw.writerow([
+            row['name'],
+            row['phone'] or '',
+            row['username'] or '',
+            row['amount'],
+            row['week_start'],
+            row['date_paid']
+        ])
+
+    # Get the CSV string
+    output = si.getvalue()
+
+    # Return as a downloadable file
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=contributions.csv"}
+    )
+@app.route('/export_expenses')
+@admin_required
+def export_expenses():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute('''
+        SELECT description, amount, category, expense_date, recorded_by
+        FROM expenses
+        ORDER BY expense_date DESC
+    ''')
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Description', 'Amount (KSH)', 'Category', 'Date', 'Recorded By'])
+    for row in rows:
+        cw.writerow([
+            row['description'],
+            row['amount'],
+            row['category'] or '',
+            row['expense_date'],
+            row['recorded_by'] or ''
+        ])
+
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=expenses.csv"}
+    )
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
