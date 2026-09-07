@@ -542,5 +542,56 @@ def change_password():
         return redirect(url_for('dashboard'))
 
     return render_template('change_password.html')
+@app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_member(member_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM members WHERE id = %s", (member_id,))
+    member = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not member:
+        flash('Member not found!', 'error')
+        return redirect(url_for('members'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone', '')
+        username = request.form.get('username')
+        new_password = request.form.get('new_password', '')
+
+        if not name or not username:
+            flash('Name and username are required.', 'error')
+            return redirect(url_for('edit_member', member_id=member_id))
+
+        # Check if username is taken by another member
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id FROM members WHERE username = %s AND id != %s", (username, member_id))
+        existing = cur.fetchone()
+        if existing:
+            cur.close()
+            conn.close()
+            flash('Username already taken by another member.', 'error')
+            return redirect(url_for('edit_member', member_id=member_id))
+
+        # Update member info
+        cur.execute("UPDATE members SET name = %s, phone = %s, username = %s WHERE id = %s",
+                    (name, phone, username, member_id))
+        
+        # If new password provided, hash and update it
+        if new_password:
+            hashed = generate_password_hash(new_password)
+            cur.execute("UPDATE members SET password_hash = %s WHERE id = %s", (hashed, member_id))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Member updated successfully!', 'success')
+        return redirect(url_for('members'))
+
+    return render_template('edit_member.html', member=member)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

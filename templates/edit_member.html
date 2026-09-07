@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Member - Praise Team Kitty{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-12">
+        <div class="card mt-4">
+            <div class="card-header bg-royal-blue">
+                <h5 class="mb-0">Edit Member: {{ member['name'] }}</h5>
+            </div>
+            <div class="card-body">
+                <form action="/edit_member/{{ member['id'] }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" name="name" value="{{ member['name'] }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" name="phone" value="{{ member['phone'] or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Username *</label>
+                        <input type="text" class="form-control" name="username" value="{{ member['username'] or '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" class="form-control" name="new_password">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
