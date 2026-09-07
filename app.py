@@ -503,6 +503,44 @@ def reports():
                          expenses_amounts=json.dumps(expenses_amounts))
 
 init_db()
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
 
+        if not current_password or not new_password or not confirm_password:
+            flash('All fields are required.', 'error')
+            return redirect(url_for('change_password'))
+
+        if new_password != confirm_password:
+            flash('New passwords do not match.', 'error')
+            return redirect(url_for('change_password'))
+
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM members WHERE id = %s", (session['user_id'],))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not user or not check_password_hash(user['password_hash'], current_password):
+            flash('Current password is incorrect.', 'error')
+            return redirect(url_for('change_password'))
+
+        # Hash the new password
+        new_hash = generate_password_hash(new_password)
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE members SET password_hash = %s WHERE id = %s", (new_hash, session['user_id']))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('change_password.html')
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
