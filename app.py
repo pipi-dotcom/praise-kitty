@@ -593,5 +593,56 @@ def edit_member(member_id):
         return redirect(url_for('members'))
 
     return render_template('edit_member.html', member=member)
+@app.route('/admin_profile', methods=['GET', 'POST'])
+@admin_required
+def admin_profile():
+    # Get current admin details
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM members WHERE id = %s", (session['user_id'],))
+    admin = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not admin:
+        flash('Admin not found!', 'error')
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        username = request.form.get('username')
+        new_password = request.form.get('new_password', '')
+
+        if not name or not username:
+            flash('Name and username are required.', 'error')
+            return redirect(url_for('admin_profile'))
+
+        # Check if username is taken by another member
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id FROM members WHERE username = %s AND id != %s", (username, session['user_id']))
+        existing = cur.fetchone()
+        if existing:
+            cur.close()
+            conn.close()
+            flash('Username already taken by another member.', 'error')
+            return redirect(url_for('admin_profile'))
+
+        # Update name and username
+        cur.execute("UPDATE members SET name = %s, username = %s WHERE id = %s",
+                    (name, username, session['user_id']))
+
+        # If new password provided, update it
+        if new_password:
+            hashed = generate_password_hash(new_password)
+            cur.execute("UPDATE members SET password_hash = %s WHERE id = %s", (hashed, session['user_id']))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('admin_profile'))
+
+    return render_template('admin_profile.html', admin=admin)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
