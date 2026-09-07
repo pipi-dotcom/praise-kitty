@@ -218,20 +218,34 @@ def index():
 @app.route('/members')
 @admin_required
 def members():
+    search_query = request.args.get('search', '').strip()
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute('''
-    SELECT m.*,
-           (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-           (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
-    FROM members m
-    WHERE m.is_admin = FALSE
-    ORDER BY m.name
-''')
+
+    if search_query:
+        cur.execute('''
+            SELECT m.*,
+                   (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
+            FROM members m
+            WHERE m.is_admin = FALSE
+              AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
+            ORDER BY m.name
+        ''', (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
+    else:
+        cur.execute('''
+            SELECT m.*,
+                   (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
+            FROM members m
+            WHERE m.is_admin = FALSE
+            ORDER BY m.name
+        ''')
+
     members_list = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template('members.html', members=members_list)
+    return render_template('members.html', members=members_list, search_query=search_query)
 @app.route('/member/<int:member_id>')
 @admin_required
 def member_detail(member_id):
@@ -310,15 +324,18 @@ def delete_member(member_id):
 @admin_required
 def contributions():
     current_week = get_current_week_start()
+    week_filter = request.args.get('week', current_week)
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM members WHERE status='active' AND is_admin = FALSE ORDER BY name")
     members_list = cur.fetchall()
 
+    # If filtering by a specific week, only show contributions for that week
     cur.execute('''
         SELECT member_id FROM contributions
         WHERE week_start = %s
-    ''', (current_week,))
+    ''', (week_filter,))
     paid_this_week = cur.fetchall()
     paid_ids = [row['member_id'] for row in paid_this_week]
 
@@ -326,9 +343,9 @@ def contributions():
         SELECT c.id, m.name, c.amount, c.week_start, c.date_paid
         FROM contributions c
         JOIN members m ON c.member_id = m.id
+        WHERE c.week_start = %s
         ORDER BY c.date_paid DESC
-        LIMIT 50
-    ''')
+    ''', (week_filter,))
     history = cur.fetchall()
     cur.close()
     conn.close()
@@ -337,6 +354,7 @@ def contributions():
                          members=members_list,
                          paid_ids=paid_ids,
                          current_week=current_week,
+                         week_filter=week_filter,
                          history=history)
 
 @app.route('/record_contribution', methods=['POST'])
