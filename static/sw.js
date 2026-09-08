@@ -1,4 +1,4 @@
-const CACHE_NAME = 'praise-kitty-v1';
+const CACHE_NAME = 'praise-kitty-v2';
 const urlsToCache = [
   '/',
   '/static/style.css',
