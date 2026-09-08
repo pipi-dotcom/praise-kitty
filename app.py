@@ -304,7 +304,10 @@ def add_member():
     username = request.form.get('username')
     password = request.form.get('password')
     
-    if name and username and password:
+        if name and username and password:
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long.', 'error')
+            return redirect(url_for('members'))
         hashed = generate_password_hash(password)
         conn = get_db()
         cur = conn.cursor()
@@ -636,8 +639,11 @@ def edit_member(member_id):
         cur.execute("UPDATE members SET name = %s, phone = %s, username = %s WHERE id = %s",
                     (name, phone, username, member_id))
         
-        # If new password provided, hash and update it
+         # If new password provided, hash and update it
         if new_password:
+            if len(new_password) < 6:
+                flash('Password must be at least 6 characters long.', 'error')
+                return redirect(url_for('edit_member', member_id=member_id))
             hashed = generate_password_hash(new_password)
             cur.execute("UPDATE members SET password_hash = %s WHERE id = %s", (hashed, member_id))
 
@@ -689,6 +695,9 @@ def admin_profile():
 
         # If new password provided, update it
         if new_password:
+            if len(new_password) < 6:
+                flash('Password must be at least 6 characters long.', 'error')
+                return redirect(url_for('admin_profile'))
             hashed = generate_password_hash(new_password)
             cur.execute("UPDATE members SET password_hash = %s WHERE id = %s", (hashed, session['user_id']))
 
