@@ -86,8 +86,8 @@ def init_db():
         )
     ''')
 
-    # Create default admin user if not exists
-    cur.execute("SELECT id FROM members WHERE username = 'admin'")
+    # Create default admin only if no admin exists
+    cur.execute("SELECT id FROM members WHERE is_admin = TRUE")
     if not cur.fetchone():
         cur.execute('''
             INSERT INTO members (name, username, password_hash, is_admin)
