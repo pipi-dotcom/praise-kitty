@@ -191,11 +191,9 @@ def dashboard():
     cur.execute("SELECT COALESCE(SUM(amount), 0) as total_paid FROM contributions WHERE member_id = %s", (user_id,))
     total_paid = cur.fetchone()['total_paid']
     
-    cur.execute("SELECT COUNT(*) as weeks_paid FROM contributions WHERE member_id = %s", (user_id,))
-    weeks_paid = cur.fetchone()['weeks_paid']
-
     cur.execute("SELECT COALESCE(credit, 0) as credit FROM members WHERE id = %s", (user_id,))
     credit = cur.fetchone()['credit']
+    weeks_paid = int((total_paid + credit) // 50)
     expected_total = get_expected_total()
     balance = total_paid + credit - expected_total
     
@@ -261,7 +259,7 @@ def members():
         cur.execute('''
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
+                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
                    %s as expected_total,
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
                    COALESCE(m.credit, 0) as credit
@@ -274,7 +272,7 @@ def members():
         cur.execute('''
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
+                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
                    %s as expected_total,
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
                    COALESCE(m.credit, 0) as credit
@@ -897,6 +895,41 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html')
+@app.route('/member/<int:member_id>')
+@admin_required
+def member_detail(member_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute('''
+        SELECT m.*,
+               (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
+               %s as expected_total,
+               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+               COALESCE(m.credit, 0) as credit
+        FROM members m
+        WHERE m.id = %s
+    ''', (get_expected_total(), get_expected_total(), member_id))
+
+    member = cur.fetchone()
+
+    if not member:
+        flash('Member not found!', 'error')
+        return redirect(url_for('members'))
+
+    cur.execute('''
+        SELECT id, amount, week_start, date_paid
+        FROM contributions
+        WHERE member_id = %s
+        ORDER BY week_start DESC
+    ''', (member_id,))
+    contributions = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template('member_detail.html', member=member, contributions=contributions)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
