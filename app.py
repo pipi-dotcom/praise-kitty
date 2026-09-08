@@ -189,9 +189,20 @@ def index():
     total_contributions = get_total_contributions()
     total_expenses = get_total_expenses()
     balance = total_contributions - total_expenses
-    active_members = get_active_members_count()
-
+        active_members = get_active_members_count()
+    
+    # Weekly progress
+    current_week = get_current_week_start()
     conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT COUNT(*) as paid_count FROM contributions WHERE week_start = %s", (current_week,))
+    paid_this_week = cur.fetchone()['paid_count']
+    if active_members > 0:
+        progress_percent = int((paid_this_week / active_members) * 100)
+    else:
+        progress_percent = 0
+
+    # Recent transactions
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('''
         SELECT m.name, c.amount, c.date_paid
@@ -210,11 +221,13 @@ def index():
     cur.close()
     conn.close()
 
-    return render_template('index.html',
+        return render_template('index.html', 
                          total_contributions=total_contributions,
                          total_expenses=total_expenses,
                          balance=balance,
                          active_members=active_members,
+                         paid_this_week=paid_this_week,
+                         progress_percent=progress_percent,
                          recent_contributions=recent_contributions,
                          recent_expenses=recent_expenses)
 

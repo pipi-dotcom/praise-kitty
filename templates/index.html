@@ -45,6 +45,25 @@
     </div>
 </div>
 
+<!-- Weekly Progress -->
+<div class="card mb-4">
+    <div class="card-header bg-royal-blue">
+        <h5 class="mb-0"><i class="bi bi-check-circle"></i> Weekly Contribution Progress</h5>
+    </div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+            <span>Members paid this week: {{ paid_this_week }} / {{ active_members }}</span>
+            <span>{{ progress_percent }}%</span>
+        </div>
+        <div class="progress" style="height: 20px;">
+            <div class="progress-bar" role="progressbar" style="width: {{ progress_percent }}%;" 
+                 aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                {{ progress_percent }}%
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent Activity -->
 <div class="row">
     <div class="col-md-6 mb-3">
