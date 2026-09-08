@@ -46,10 +46,10 @@
                 <td>{{ member['weeks_paid'] }} weeks</td>
                 <td>{{ "%.0f"|format(member['credit'] or 0) }}</td>
                 <td>
-                    {% if member['balance'] > 0 %}
-                        <span class="text-danger">Owes KSH {{ "%.0f"|format(member['balance']) }}</span>
-                    {% elif member['balance'] < 0 %}
-                        <span class="text-success">Overpaid KSH {{ "%.0f"|format(-member['balance']) }}</span>
+                                 {% if member['balance'] < 0 %}
+                        <span class="text-danger">Owes KSH {{ "%.0f"|format(-member['balance']) }}</span>
+                    {% elif member['balance'] > 0 %}
+                        <span class="text-success">Overpaid KSH {{ "%.0f"|format(member['balance']) }}</span>
                     {% else %}
                         <span class="text-muted">Up to date</span>
                     {% endif %}

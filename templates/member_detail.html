@@ -48,10 +48,10 @@
         <div class="card stat-card bg-white-yellow">
             <div class="card-body">
                 <h6 class="card-title">Balance</h6>
-                {% if member['balance'] > 0 %}
-                    <h3 class="mb-0 text-danger">-KSH {{ "%.0f"|format(member['balance']) }}</h3>
-                {% elif member['balance'] < 0 %}
-                    <h3 class="mb-0 text-success">+KSH {{ "%.0f"|format(-member['balance']) }}</h3>
+                                {% if member['balance'] < 0 %}
+                    <h3 class="mb-0 text-danger">Owes KSH {{ "%.0f"|format(-member['balance']) }}</h3>
+                {% elif member['balance'] > 0 %}
+                    <h3 class="mb-0 text-success">Overpaid KSH {{ "%.0f"|format(member['balance']) }}</h3>
                 {% else %}
                     <h3 class="mb-0">KSH 0</h3>
                 {% endif %}
