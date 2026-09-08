@@ -304,7 +304,7 @@ def add_member():
     username = request.form.get('username')
     password = request.form.get('password')
     
-        if name and username and password:
+    if name and username and password:
         if len(password) < 6:
             flash('Password must be at least 6 characters long.', 'error')
             return redirect(url_for('members'))
