@@ -31,9 +31,12 @@
         <tbody>
             {% for member in members %}
             <tr>
-                <td>
+               <td>
     <a href="/member/{{ member['id'] }}" class="text-decoration-none">
         {{ member['name'] }}
+        {% if member['is_admin'] %}
+            <span class="badge bg-warning text-dark ms-1">Admin</span>
+        {% endif %}
     </a>
 </td>
                 <td>{{ member['phone'] or '-' }}</td>
