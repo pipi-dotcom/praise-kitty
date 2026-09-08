@@ -221,7 +221,7 @@ def index():
     else:
         progress_percent = 0
 
-    # Recent contributions
+    # Recent contributions (last 5)
     cur.execute('''
         SELECT m.name, c.amount, c.date_paid
         FROM contributions c
@@ -230,7 +230,7 @@ def index():
     ''')
     recent_contributions = cur.fetchall()
 
-    # Recent expenses
+    # Recent expenses (last 5)
     cur.execute('''
         SELECT description, amount, expense_date
         FROM expenses
