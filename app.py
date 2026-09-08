@@ -189,8 +189,8 @@ def index():
     total_contributions = get_total_contributions()
     total_expenses = get_total_expenses()
     balance = total_contributions - total_expenses
-        active_members = get_active_members_count()
-    
+    active_members = get_active_members_count()
+
     # Weekly progress
     current_week = get_current_week_start()
     conn = get_db()
@@ -203,7 +203,6 @@ def index():
         progress_percent = 0
 
     # Recent transactions
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('''
         SELECT m.name, c.amount, c.date_paid
         FROM contributions c
@@ -218,10 +217,11 @@ def index():
         ORDER BY expense_date DESC LIMIT 5
     ''')
     recent_expenses = cur.fetchall()
+
     cur.close()
     conn.close()
 
-        return render_template('index.html', 
+    return render_template('index.html',
                          total_contributions=total_contributions,
                          total_expenses=total_expenses,
                          balance=balance,
@@ -230,7 +230,6 @@ def index():
                          progress_percent=progress_percent,
                          recent_contributions=recent_contributions,
                          recent_expenses=recent_expenses)
-
 @app.route('/members')
 @admin_required
 def members():
