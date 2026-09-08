@@ -3,16 +3,16 @@
 {% block title %}Reports - Praise Team Kitty{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Financial Reports</h2>
-    <div class="d-flex gap-2">
-        <a href="/export_contributions" class="btn btn-success">
-            <i class="bi bi-download"></i> Export Contributions CSV
-        </a>
-        <a href="/export_expenses" class="btn btn-danger">
-            <i class="bi bi-download"></i> Export Expenses CSV
-        </a>
-    </div>
+<div class="d-flex gap-2 no-print">
+    <a href="/export_contributions" class="btn btn-success">
+        <i class="bi bi-download"></i> Export Contributions CSV
+    </a>
+    <a href="/export_expenses" class="btn btn-danger">
+        <i class="bi bi-download"></i> Export Expenses CSV
+    </a>
+    <button onclick="window.print()" class="btn btn-secondary">
+        <i class="bi bi-printer"></i> Print
+    </button>
 </div>
 
 <!-- Monthly Trends Chart -->

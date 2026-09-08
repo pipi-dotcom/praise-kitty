@@ -150,3 +150,16 @@ footer {
         padding-right: 15px;
     }
 }
+/* Print styles */
+@media print {
+    .navbar, .btn, .no-print, footer {
+        display: none !important;
+    }
+    .card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    body {
+        background: white;
+    }
+}
