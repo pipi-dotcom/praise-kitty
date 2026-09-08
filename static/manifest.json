@@ -1,0 +1,21 @@
+{
+  "name": "Praise Team Kitty",
+  "short_name": "Kitty",
+  "description": "Praise Team Weekly Contributions Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1E3A5F",
+  "theme_color": "#1E3A5F",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
