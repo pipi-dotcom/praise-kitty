@@ -24,6 +24,8 @@
                 <th>Phone</th>
                 <th>Total Paid</th>
                 <th>Weeks Paid</th>
+                <th>Credit</th>
+                <th>Balance</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -40,8 +42,18 @@
     </a>
 </td>
                 <td>{{ member['phone'] or '-' }}</td>
-                <td>KSH {{ "%.0f"|format(member['total_paid']) }}</td>
+                               <td>KSH {{ "%.0f"|format(member['total_paid']) }}</td>
                 <td>{{ member['weeks_paid'] }} weeks</td>
+                <td>{{ "%.0f"|format(member['credit'] or 0) }}</td>
+                <td>
+                    {% if member['balance'] > 0 %}
+                        <span class="text-danger">Owes KSH {{ "%.0f"|format(member['balance']) }}</span>
+                    {% elif member['balance'] < 0 %}
+                        <span class="text-success">Overpaid KSH {{ "%.0f"|format(-member['balance']) }}</span>
+                    {% else %}
+                        <span class="text-muted">Up to date</span>
+                    {% endif %}
+                </td>
                 <td>
                     <span class="badge bg-success">{{ member['status'] }}</span>
                 </td>

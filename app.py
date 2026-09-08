@@ -10,6 +10,8 @@ import csv
 from io import StringIO
 from flask import Response
 import json
+from datetime import date
+KITTY_START_DATE = date(2026, 8, 2)  # Sunday, 2nd August 2026
 
 app = Flask(__name__)
 # Decorators
@@ -60,6 +62,7 @@ def init_db():
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS username TEXT UNIQUE")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS password_hash TEXT")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE")
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS credit REAL DEFAULT 0.0")    
 
     # Create contributions and expenses tables (unchanged)
     cur.execute('''
@@ -125,6 +128,18 @@ def get_active_members_count():
 def get_current_week_start():
     today = datetime.now()
     return (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
+def get_expected_weeks():
+    """Number of Sundays from KITTY_START_DATE to current week, inclusive."""
+    current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
+    start = KITTY_START_DATE
+    if current_week < start:
+        return 0
+    days_diff = (current_week - start).days
+    return days_diff // 7 + 1
+
+def get_expected_total():
+    """Expected total contribution per member."""
+    return get_expected_weeks() * 50.0
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -178,11 +193,16 @@ def dashboard():
     
     cur.execute("SELECT COUNT(*) as weeks_paid FROM contributions WHERE member_id = %s", (user_id,))
     weeks_paid = cur.fetchone()['weeks_paid']
+
+    cur.execute("SELECT COALESCE(credit, 0) as credit FROM members WHERE id = %s", (user_id,))
+    credit = cur.fetchone()['credit']
+    expected_total = get_expected_total()
+    balance = total_paid + credit - expected_total
     
     cur.close()
     conn.close()
     
-    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid)
+    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance)
 @app.route('/')
 @admin_required
 def index():
@@ -238,23 +258,30 @@ def members():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     if search_query:
-        cur.execute('''
+              cur.execute('''
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
-            FROM members m
-        WHERE m.status = 'active'
-  AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
-            ORDER BY m.name
-        ''', (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
-    else:
-        cur.execute('''
-            SELECT m.*,
-                   (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
+                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
+                   %s as expected_total,
+                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+                   COALESCE(m.credit, 0) as credit
             FROM members m
             WHERE m.status = 'active'
-ORDER BY m.name
+              AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
+            ORDER BY m.name
+        ''', (get_expected_total(), get_expected_total(), f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
+    else:
+                cur.execute('''
+            SELECT m.*,
+                   (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+                   (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
+                   %s as expected_total,
+                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+                   COALESCE(m.credit, 0) as credit
+            FROM members m
+            WHERE m.status = 'active'
+            ORDER BY m.name
+        ''', (get_expected_total(), get_expected_total()))
         ''')
 
     members_list = cur.fetchall()
@@ -268,13 +295,16 @@ def member_detail(member_id):
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     # Get member info and totals
-    cur.execute('''
+       cur.execute('''
         SELECT m.*,
                (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-               (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
+               (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
+               %s as expected_total,
+               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+               COALESCE(m.credit, 0) as credit
         FROM members m
         WHERE m.id = %s
-    ''', (member_id,))
+    ''', (get_expected_total(), get_expected_total(), member_id))
     member = cur.fetchone()
     
     if not member:
@@ -390,31 +420,66 @@ def contributions():
 @admin_required
 def record_contribution():
     member_id = request.form.get('member_id')
-    amount = request.form.get('amount', 50)
+    amount = float(request.form.get('amount', 0))
     week_start = request.form.get('week_start', get_current_week_start())
 
-    if member_id:
-        conn = get_db()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    if not member_id:
+        flash('Please select a member!', 'error')
+        return redirect(url_for('contributions'))
+
+    if amount <= 0:
+        flash('Amount must be greater than zero.', 'error')
+        return redirect(url_for('contributions'))
+
+    full_weeks = int(amount // 50)
+    remainder = amount - (full_weeks * 50)
+
+    if full_weeks == 0:
+        # amount is less than 50, treat as credit only
+        remainder = amount
+        full_weeks = 0
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    inserted = 0
+    for i in range(full_weeks):
+        week_date = datetime.strptime(week_start, '%Y-%m-%d').date() + timedelta(weeks=i)
+        week_str = week_date.strftime('%Y-%m-%d')
+
         cur.execute('''
             SELECT id FROM contributions
             WHERE member_id = %s AND week_start = %s
-        ''', (member_id, week_start))
+        ''', (member_id, week_str))
         existing = cur.fetchone()
-
         if existing:
-            flash('This member has already paid for this week!', 'error')
-        else:
-            cur.execute('''
-                INSERT INTO contributions (member_id, amount, week_start)
-                VALUES (%s, %s, %s)
-            ''', (member_id, amount, week_start))
-            conn.commit()
-            flash('Contribution recorded successfully!', 'success')
-        cur.close()
-        conn.close()
+            continue
+
+        cur.execute('''
+            INSERT INTO contributions (member_id, amount, week_start)
+            VALUES (%s, %s, %s)
+        ''', (member_id, 50.0, week_str))
+        inserted += 1
+
+    # Handle remainder as credit
+    if remainder > 0:
+        cur.execute("UPDATE members SET credit = credit + %s WHERE id = %s", (remainder, member_id))
+        credit_added = True
     else:
-        flash('Please select a member!', 'error')
+        credit_added = False
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    if inserted > 0 and credit_added:
+        flash(f'Recorded {inserted} week(s) and added KSH {remainder:.0f} credit.', 'success')
+    elif inserted > 0:
+        flash(f'Recorded {inserted} week(s) successfully.', 'success')
+    elif credit_added:
+        flash(f'Added KSH {remainder:.0f} credit (less than one week).', 'success')
+    else:
+        flash('All selected weeks were already paid.', 'error')
 
     return redirect(url_for('contributions'))
 

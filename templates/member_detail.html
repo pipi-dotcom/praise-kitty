@@ -36,6 +36,45 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3 col-6">
+        <div class="card stat-card bg-white-yellow">
+            <div class="card-body">
+                <h6 class="card-title">Credit</h6>
+                <h3 class="mb-0">KSH {{ "%.0f"|format(member['credit'] or 0) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card stat-card bg-white-yellow">
+            <div class="card-body">
+                <h6 class="card-title">Balance</h6>
+                {% if member['balance'] > 0 %}
+                    <h3 class="mb-0 text-danger">-KSH {{ "%.0f"|format(member['balance']) }}</h3>
+                {% elif member['balance'] < 0 %}
+                    <h3 class="mb-0 text-success">+KSH {{ "%.0f"|format(-member['balance']) }}</h3>
+                {% else %}
+                    <h3 class="mb-0">KSH 0</h3>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+    <div class="col-md-4 col-6">
+        <div class="card stat-card bg-mustard-yellow">
+            <div class="card-body">
+                <h6 class="card-title">Weeks Paid</h6>
+                <h3 class="mb-0">{{ member['weeks_paid'] }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="card stat-card bg-white-blue">
+            <div class="card-body">
+                <h6 class="card-title">Phone</h6>
+                <h3 class="mb-0">{{ member['phone'] or 'N/A' }}</h3>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Contribution History Table -->
