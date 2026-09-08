@@ -258,7 +258,7 @@ def members():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     if search_query:
-              cur.execute('''
+        cur.execute('''
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                    (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
@@ -271,7 +271,7 @@ def members():
             ORDER BY m.name
         ''', (get_expected_total(), get_expected_total(), f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
     else:
-                cur.execute('''
+        cur.execute('''
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                    (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
@@ -282,48 +282,11 @@ def members():
             WHERE m.status = 'active'
             ORDER BY m.name
         ''', (get_expected_total(), get_expected_total()))
-        ''')
 
     members_list = cur.fetchall()
     cur.close()
     conn.close()
     return render_template('members.html', members=members_list, search_query=search_query)
-@app.route('/member/<int:member_id>')
-@admin_required
-def member_detail(member_id):
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
-    # Get member info and totals
-       cur.execute('''
-        SELECT m.*,
-               (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
-               (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid,
-               %s as expected_total,
-               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
-               COALESCE(m.credit, 0) as credit
-        FROM members m
-        WHERE m.id = %s
-    ''', (get_expected_total(), get_expected_total(), member_id))
-    member = cur.fetchone()
-    
-    if not member:
-        flash('Member not found!', 'error')
-        return redirect(url_for('members'))
-    
-    # Get all contributions for this member
-    cur.execute('''
-        SELECT id, amount, week_start, date_paid
-        FROM contributions
-        WHERE member_id = %s
-        ORDER BY week_start DESC
-    ''', (member_id,))
-    contributions = cur.fetchall()
-    
-    cur.close()
-    conn.close()
-    
-    return render_template('member_detail.html', member=member, contributions=contributions)
 
 @app.route('/add_member', methods=['POST'])
 @app.route('/add_member', methods=['POST'])
