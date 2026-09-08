@@ -575,6 +575,28 @@ def change_password():
         return redirect(url_for('dashboard'))
 
     return render_template('change_password.html')
+@app.route('/my_profile', methods=['GET', 'POST'])
+@login_required
+def my_profile():
+    user_id = session['user_id']
+    if request.method == 'POST':
+        phone = request.form.get('phone', '')
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE members SET phone = %s WHERE id = %s", (phone, user_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Phone number updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    else:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM members WHERE id = %s", (user_id,))
+        member = cur.fetchone()
+        cur.close()
+        conn.close()
+        return render_template('my_profile.html', member=member)
 @app.route('/edit_member/<int:member_id>', methods=['GET', 'POST'])
 @admin_required
 def edit_member(member_id):
