@@ -46,9 +46,14 @@
     <a href="/edit_member/{{ member['id'] }}" class="btn btn-sm btn-primary me-1">
         <i class="bi bi-pencil"></i>
     </a>
+    <a href="/deactivate_member/{{ member['id'] }}" 
+       class="btn btn-sm btn-warning me-1"
+       onclick="return confirm('Deactivate this member? They will no longer appear in active lists, but their contributions are kept.')">
+        <i class="bi bi-pause-circle"></i>
+    </a>
     <a href="/delete_member/{{ member['id'] }}" 
        class="btn btn-sm btn-danger"
-       onclick="return confirm('Delete this member? This will also delete their contributions.')">
+       onclick="return confirm('PERMANENTLY DELETE this member and ALL their contributions? This cannot be undone!')">
         <i class="bi bi-trash"></i>
     </a>
 </td>

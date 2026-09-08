@@ -243,8 +243,8 @@ def members():
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                    (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
             FROM members m
-            WHERE m.is_admin = FALSE
-              AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
+            WHERE m.is_admin = FALSE AND m.status = 'active'
+  AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
             ORDER BY m.name
         ''', (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
     else:
@@ -253,7 +253,7 @@ def members():
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                    (SELECT COUNT(*) FROM contributions c WHERE c.member_id = m.id) as weeks_paid
             FROM members m
-            WHERE m.is_admin = FALSE
+            WHERE m.is_admin = FALSE AND m.status = 'active'
             ORDER BY m.name
         ''')
 
@@ -336,6 +336,17 @@ def delete_member(member_id):
     cur.close()
     conn.close()
     flash('Member deleted!', 'success')
+    return redirect(url_for('members'))
+@app.route('/deactivate_member/<int:member_id>')
+@admin_required
+def deactivate_member(member_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE members SET status = 'inactive' WHERE id = %s", (member_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('Member deactivated successfully. Their history is preserved.', 'success')
     return redirect(url_for('members'))
 
 @app.route('/contributions')
