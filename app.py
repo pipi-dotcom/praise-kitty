@@ -589,8 +589,7 @@ def change_password():
         return redirect(url_for('dashboard'))
 
     return render_template('change_password.html')
-@app.route('/my_profile', methods=['GET', 'POST'])
-@login_required
+
 @app.route('/my_profile', methods=['GET', 'POST'])
 @login_required
 def my_profile():
