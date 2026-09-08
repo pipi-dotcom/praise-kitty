@@ -591,17 +591,40 @@ def change_password():
     return render_template('change_password.html')
 @app.route('/my_profile', methods=['GET', 'POST'])
 @login_required
+@app.route('/my_profile', methods=['GET', 'POST'])
+@login_required
 def my_profile():
     user_id = session['user_id']
     if request.method == 'POST':
         phone = request.form.get('phone', '')
+        username = request.form.get('username', '').strip()
+
+        if not username:
+            flash('Username cannot be empty.', 'error')
+            return redirect(url_for('my_profile'))
+
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE members SET phone = %s WHERE id = %s", (phone, user_id))
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Check if username is taken by another member
+        cur.execute("SELECT id FROM members WHERE username = %s AND id != %s", (username, user_id))
+        existing = cur.fetchone()
+        if existing:
+            cur.close()
+            conn.close()
+            flash('Username already taken by another member. Please choose a different one.', 'error')
+            return redirect(url_for('my_profile'))
+
+        # Update phone and username
+        cur.execute("UPDATE members SET phone = %s, username = %s WHERE id = %s",
+                    (phone, username, user_id))
         conn.commit()
         cur.close()
         conn.close()
-        flash('Phone number updated successfully!', 'success')
+
+        # Update session username immediately
+        session['username'] = username
+        flash('Profile updated successfully!', 'success')
         return redirect(url_for('dashboard'))
     else:
         conn = get_db()
@@ -806,6 +829,47 @@ def manifest():
 @app.route('/sw.js')
 def service_worker():
     return app.send_static_file('sw.js')
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone', '')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not name or not username or not password:
+            flash('Name, username, and password are required.', 'error')
+            return redirect(url_for('register'))
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return redirect(url_for('register'))
+
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long.', 'error')
+            return redirect(url_for('register'))
+
+        hashed = generate_password_hash(password)
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id FROM members WHERE username = %s", (username,))
+        existing = cur.fetchone()
+        if existing:
+            cur.close()
+            conn.close()
+            flash('Username already taken. Please choose another.', 'error')
+            return redirect(url_for('register'))
+
+        cur.execute("INSERT INTO members (name, phone, username, password_hash, is_admin) VALUES (%s, %s, %s, %s, FALSE)",
+                    (name, phone, username, hashed))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Registration successful! You can now log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
