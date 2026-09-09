@@ -399,13 +399,12 @@ def record_contribution():
         flash('Amount must be greater than zero.', 'error')
         return redirect(url_for('contributions'))
 
+    # Calculate full weeks and remainder
     full_weeks = int(amount // 50)
     remainder = amount - (full_weeks * 50)
 
     if full_weeks == 0:
-        # amount is less than 50, treat as credit only
-        remainder = amount
-        full_weeks = 0
+        remainder = amount  # whole amount is less than 50, treat as credit only
 
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -415,13 +414,14 @@ def record_contribution():
         week_date = datetime.strptime(week_start, '%Y-%m-%d').date() + timedelta(weeks=i)
         week_str = week_date.strftime('%Y-%m-%d')
 
+        # Check if this member already has a contribution for this week
         cur.execute('''
             SELECT id FROM contributions
             WHERE member_id = %s AND week_start = %s
         ''', (member_id, week_str))
         existing = cur.fetchone()
         if existing:
-            continue
+            continue  # skip already paid week
 
         cur.execute('''
             INSERT INTO contributions (member_id, amount, week_start)
