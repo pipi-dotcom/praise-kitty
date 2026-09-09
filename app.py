@@ -11,8 +11,7 @@ from io import StringIO
 from flask import Response
 import json
 from datetime import date
-KITTY_START_DATE = date(2026, 8, 2)  # Sunday, 2nd August 2026
-
+KITTY_START_DATE = date(2026, 8, 2)   # adjust to your actual start date
 app = Flask(__name__)
 # Decorators
 def login_required(f):
@@ -83,6 +82,16 @@ def init_db():
             expense_date DATE NOT NULL,
             recorded_by TEXT,
             date_recorded TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS credit_transactions (
+            id SERIAL PRIMARY KEY,
+            member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+            amount REAL NOT NULL,
+            transaction_type TEXT NOT NULL,
+            date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
@@ -399,56 +408,57 @@ def record_contribution():
         flash('Amount must be greater than zero.', 'error')
         return redirect(url_for('contributions'))
 
-    # Calculate full weeks and remainder
-    full_weeks = int(amount // 50)
-    remainder = amount - (full_weeks * 50)
-
-    if full_weeks == 0:
-        remainder = amount  # whole amount is less than 50, treat as credit only
-
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    inserted = 0
-    for i in range(full_weeks):
-        week_date = datetime.strptime(week_start, '%Y-%m-%d').date() + timedelta(weeks=i)
-        week_str = week_date.strftime('%Y-%m-%d')
+    # Step 1: Add the payment to member's credit
+    cur.execute("UPDATE members SET credit = credit + %s WHERE id = %s", (amount, member_id))
+    cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'add')",
+                (member_id, amount))
 
-        # Check if this member already has a contribution for this week
-        cur.execute('''
-            SELECT id FROM contributions
-            WHERE member_id = %s AND week_start = %s
-        ''', (member_id, week_str))
+    # Step 2: Redeem credit for earliest unpaid weeks
+    redeemed_weeks = 0
+    # Determine the earliest unpaid week from KITTY_START_DATE to current week
+    cur.execute("SELECT credit FROM members WHERE id = %s", (member_id,))
+    credit = cur.fetchone()['credit']
+
+    # Generate list of all Sundays from KITTY_START_DATE to current week
+    start_date = KITTY_START_DATE
+    current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
+    weeks = []
+    d = start_date
+    while d <= current_week:
+        weeks.append(d.strftime('%Y-%m-%d'))
+        d += timedelta(days=7)
+
+    for week_str in weeks:
+        if credit < 50:
+            break
+        # Check if already paid for this week
+        cur.execute("SELECT id FROM contributions WHERE member_id = %s AND week_start = %s", (member_id, week_str))
         existing = cur.fetchone()
-        if existing:
-            continue  # skip already paid week
+        if not existing:
+            # Insert a contribution of 50
+            cur.execute("INSERT INTO contributions (member_id, amount, week_start) VALUES (%s, %s, %s)",
+                        (member_id, 50.0, week_str))
+            credit -= 50
+            redeemed_weeks += 1
+            cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'use')",
+                        (member_id, 50.0))
 
-        cur.execute('''
-            INSERT INTO contributions (member_id, amount, week_start)
-            VALUES (%s, %s, %s)
-        ''', (member_id, 50.0, week_str))
-        inserted += 1
-
-    # Handle remainder as credit
-    if remainder > 0:
-        cur.execute("UPDATE members SET credit = credit + %s WHERE id = %s", (remainder, member_id))
-        credit_added = True
-    else:
-        credit_added = False
+    # Update member's credit with remaining balance
+    cur.execute("UPDATE members SET credit = %s WHERE id = %s", (credit, member_id))
 
     conn.commit()
     cur.close()
     conn.close()
 
-    if inserted > 0 and credit_added:
-        flash(f'Recorded {inserted} week(s) and added KSH {remainder:.0f} credit.', 'success')
-    elif inserted > 0:
-        flash(f'Recorded {inserted} week(s) successfully.', 'success')
-    elif credit_added:
-        flash(f'Added KSH {remainder:.0f} credit (less than one week).', 'success')
-    else:
-        flash('All selected weeks were already paid.', 'error')
-
+    message = f'Payment received: KSH {amount:.0f}. '
+    if redeemed_weeks > 0:
+        message += f'{redeemed_weeks} week(s) recorded. '
+    if credit > 0:
+        message += f'Remaining credit: KSH {credit:.0f}.'
+    flash(message, 'success')
     return redirect(url_for('contributions'))
 
 @app.route('/delete_contribution/<int:contribution_id>')
@@ -925,7 +935,7 @@ def member_detail(member_id):
         flash('Member not found!', 'error')
         return redirect(url_for('members'))
 
-    cur.execute('''
+        cur.execute('''
         SELECT id, amount, week_start, date_paid
         FROM contributions
         WHERE member_id = %s
@@ -933,10 +943,17 @@ def member_detail(member_id):
     ''', (member_id,))
     contributions = cur.fetchall()
 
+    cur.execute('''
+        SELECT * FROM credit_transactions
+        WHERE member_id = %s
+        ORDER BY date_created DESC
+    ''', (member_id,))
+    credit_transactions = cur.fetchall()
+
     cur.close()
     conn.close()
 
-    return render_template('member_detail.html', member=member, contributions=contributions)
+    return render_template('member_detail.html', member=member, contributions=contributions, credit_transactions=credit_transactions)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

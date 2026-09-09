@@ -117,4 +117,41 @@
         </div>
     </div>
 </div>
+        </div>
+    </div>
+</div>
+
+<!-- Credit Transactions -->
+<div class="card mt-4">
+    <div class="card-header bg-mustard-yellow">
+        <h5 class="mb-0"><i class="bi bi-credit-card"></i> Credit Transactions</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ct in credit_transactions %}
+                    <tr>
+                        <td>{{ ct['date_created'] }}</td>
+                        <td>{{ ct['transaction_type'] }}</td>
+                        <td>KSH {{ "%.0f"|format(ct['amount']) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center">No credit transactions yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
 {% endblock %}
