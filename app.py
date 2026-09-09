@@ -127,7 +127,9 @@ def get_active_members_count():
 
 def get_current_week_start():
     today = datetime.now()
-    return (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
+    # Calculate days since Sunday (Python weekday: Monday=0, Sunday=6)
+    days_since_sunday = (today.weekday() + 1) % 7
+    return (today - timedelta(days=days_since_sunday)).strftime('%Y-%m-%d')
 def get_expected_weeks():
     """Number of Sundays from KITTY_START_DATE to current week, inclusive."""
     current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
@@ -196,11 +198,14 @@ def dashboard():
     weeks_paid = int((total_paid + credit) // 50)
     expected_total = get_expected_total()
     balance = total_paid + credit - expected_total
+    from datetime import timedelta
+    current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
+    next_due_date = (current_week + timedelta(days=7)).strftime('%Y-%m-%d')
     
     cur.close()
     conn.close()
     
-    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance)
+    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance, next_due_date=next_due_date)
 @app.route('/')
 @admin_required
 def index():

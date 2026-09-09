@@ -5,6 +5,7 @@
 {% block content %}
 <h2 class="mb-4">Welcome, {{ member['name'] }}!</h2>
 
+<!-- Stat Cards -->
 <div class="row g-3 mb-4">
     <div class="col-md-4 col-6">
         <div class="card stat-card bg-royal-blue">
@@ -34,7 +35,7 @@
         <div class="card stat-card bg-white-yellow">
             <div class="card-body">
                 <h6 class="card-title">Balance</h6>
-                                {% if balance < 0 %}
+                {% if balance < 0 %}
                     <h3 class="mb-0 text-danger">Owes KSH {{ "%.0f"|format(-balance) }}</h3>
                 {% elif balance > 0 %}
                     <h3 class="mb-0 text-success">Overpaid KSH {{ "%.0f"|format(balance) }}</h3>
@@ -44,8 +45,35 @@
             </div>
         </div>
     </div>
+    <div class="col-12">
+        <div class="card stat-card bg-white-blue">
+            <div class="card-body text-center">
+                <h6 class="card-title">Next Payment Due</h6>
+                <h3 class="mb-0">{{ next_due_date }}</h3>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Reminder Message -->
+{% if balance < 0 %}
+<div class="alert alert-warning" role="alert">
+    <i class="bi bi-exclamation-triangle"></i>
+    You currently owe <strong>KSH {{ "%.0f"|format(-balance) }}</strong>. Please make your payment by <strong>{{ next_due_date }}</strong>.
+</div>
+{% elif balance > 0 %}
+<div class="alert alert-info" role="alert">
+    <i class="bi bi-info-circle"></i>
+    You have overpaid <strong>KSH {{ "%.0f"|format(balance) }}</strong>. Thank you!
+</div>
+{% else %}
+<div class="alert alert-success" role="alert">
+    <i class="bi bi-check-circle"></i>
+    You are up to date with your contributions. Thank you!
+</div>
+{% endif %}
+
+<!-- Contribution History -->
 <div class="card">
     <div class="card-header bg-royal-blue">
         <h5 class="mb-0"><i class="bi bi-list-ul"></i> My Contribution History</h5>
