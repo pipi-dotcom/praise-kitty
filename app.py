@@ -1039,14 +1039,15 @@ def member_detail(member_id):
         FROM members m
         WHERE m.id = %s
     ''', (get_expected_total(), get_expected_total(), member_id))
-
     member = cur.fetchone()
 
     if not member:
+        cur.close()
+        conn.close()
         flash('Member not found!', 'error')
         return redirect(url_for('members'))
 
-        cur.execute('''
+    cur.execute('''
         SELECT id, amount, week_start, date_paid
         FROM contributions
         WHERE member_id = %s
@@ -1055,7 +1056,8 @@ def member_detail(member_id):
     contributions = cur.fetchall()
 
     cur.execute('''
-        SELECT * FROM credit_transactions
+        SELECT id, amount, transaction_type, date_created
+        FROM credit_transactions
         WHERE member_id = %s
         ORDER BY date_created DESC
     ''', (member_id,))
@@ -1064,8 +1066,9 @@ def member_detail(member_id):
     cur.close()
     conn.close()
 
-    return render_template('member_detail.html', member=member, contributions=contributions, credit_transactions=credit_transactions)
-
-
+    return render_template('member_detail.html',
+                           member=member,
+                           contributions=contributions,
+                           credit_transactions=credit_transactions)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
