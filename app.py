@@ -436,53 +436,49 @@ def record_contribution():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # Step 1: Add the payment to member's credit
-    cur.execute("UPDATE members SET credit = credit + %s WHERE id = %s", (amount, member_id))
-    cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'add')",
-                (member_id, amount))
-
-    # Step 2: Redeem credit for earliest unpaid weeks
-    redeemed_weeks = 0
-    # Determine the earliest unpaid week from KITTY_START_DATE to current week
+    # Get existing credit before this payment
     cur.execute("SELECT credit FROM members WHERE id = %s", (member_id,))
-    credit = cur.fetchone()['credit']
+    existing_credit = float(cur.fetchone()['credit'] or 0.0)
 
-    # Generate list of all Sundays from KITTY_START_DATE to current week
-    start_date = KITTY_START_DATE
-    current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
-    weeks = []
-    d = start_date
-    while d <= current_week:
-        weeks.append(d.strftime('%Y-%m-%d'))
-        d += timedelta(days=7)
+    # Total money to work with
+    total_available = existing_credit + amount
 
-    for week_str in weeks:
-        if credit < 50:
-            break
-        # Check if already paid for this week
+    # How many full weeks can we pay?
+    full_weeks = int(total_available // 50)
+    new_credit = total_available - (full_weeks * 50)
+
+    # Insert contribution rows for each full week
+    inserted = 0
+    for i in range(full_weeks):
+        week_date = datetime.strptime(week_start, '%Y-%m-%d').date() + timedelta(weeks=i)
+        week_str = week_date.strftime('%Y-%m-%d')
+
         cur.execute("SELECT id FROM contributions WHERE member_id = %s AND week_start = %s", (member_id, week_str))
-        existing = cur.fetchone()
-        if not existing:
-            # Insert a contribution of 50
-            cur.execute("INSERT INTO contributions (member_id, amount, week_start) VALUES (%s, %s, %s)",
-                        (member_id, 50.0, week_str))
-            credit -= 50
-            redeemed_weeks += 1
-            cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'use')",
-                        (member_id, 50.0))
+        if cur.fetchone():
+            continue
 
-    # Update member's credit with remaining balance
-    cur.execute("UPDATE members SET credit = %s WHERE id = %s", (credit, member_id))
+        cur.execute("INSERT INTO contributions (member_id, amount, week_start) VALUES (%s, %s, %s)",
+                    (member_id, 50.0, week_str))
+        inserted += 1
+
+    # Update member's credit to the new remainder
+    cur.execute("UPDATE members SET credit = %s WHERE id = %s", (new_credit, member_id))
+
+    # Log a partial payment ONLY when credit increased (i.e., new payment left a remainder)
+    credit_increase = new_credit - existing_credit
+    if credit_increase > 0:
+        cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'add')",
+                    (member_id, credit_increase))
 
     conn.commit()
     cur.close()
     conn.close()
 
     message = f'Payment received: KSH {amount:.0f}. '
-    if redeemed_weeks > 0:
-        message += f'{redeemed_weeks} week(s) recorded. '
-    if credit > 0:
-        message += f'Remaining credit: KSH {credit:.0f}.'
+    if inserted > 0:
+        message += f'{inserted} week(s) recorded. '
+    if new_credit > 0:
+        message += f'Partial payment of KSH {new_credit:.0f} carried forward.'
     flash(message, 'success')
     return redirect(url_for('contributions'))
 
