@@ -111,5 +111,28 @@
             </div>
         </div>
     </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-mustard-yellow">
+                <h5 class="mb-0"><i class="bi bi-credit-card"></i> Recent Partial Payments</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for pp in recent_partial_payments %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ pp['name'] }}</strong>
+                                <small class="text-muted d-block">{{ pp['date_created'] }}</small>
+                            </div>
+                            <span class="badge bg-warning text-dark">KSH {{ "%.0f"|format(pp['amount']) }}</span>
+                        </li>
+                    {% else %}
+                        <li class="list-group-item text-center text-muted">No partial payments yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -254,6 +254,16 @@ def index():
     ''')
     recent_expenses = cur.fetchall()
 
+    # Recent partial payments (last 5)
+    cur.execute('''
+        SELECT m.name, ct.amount, ct.date_created
+        FROM credit_transactions ct
+        JOIN members m ON ct.member_id = m.id
+        WHERE ct.transaction_type = 'add'
+        ORDER BY ct.date_created DESC LIMIT 5
+    ''')
+    recent_partial_payments = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -265,7 +275,8 @@ def index():
                          paid_this_week=paid_this_week,
                          progress_percent=progress_percent,
                          recent_contributions=recent_contributions,
-                         recent_expenses=recent_expenses)
+                         recent_expenses=recent_expenses,
+                         recent_partial_payments=recent_partial_payments)
 @app.route('/members')
 @admin_required
 def members():

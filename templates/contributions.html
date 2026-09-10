@@ -96,7 +96,7 @@
 <!-- Credit Transactions Section -->
 <div class="card mt-4">
     <div class="card-header bg-mustard-yellow">
-        <h5 class="mb-0"><i class="bi bi-credit-card"></i> Recent Credit Transactions</h5>
+        <h5 class="mb-0"><i class="bi bi-credit-card"></i> Recent Partial Payments</h5>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -117,9 +117,9 @@
                         <td>{{ ct['name'] }}</td>
                         <td>
                             {% if ct['transaction_type'] == 'add' %}
-                                <span class="badge bg-success">Added</span>
+                                <span class="badge bg-success">Paid</span>
                             {% else %}
-                                <span class="badge bg-info text-dark">Used</span>
+                                <span class="badge bg-info text-dark">Applied</span>
                             {% endif %}
                         </td>
                         <td>KSH {{ "%.0f"|format(ct['amount']) }}</td>
@@ -133,7 +133,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center">No credit transactions yet.</td>
+                        <td colspan="5" class="text-center">No partial payments yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
