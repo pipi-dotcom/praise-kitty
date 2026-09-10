@@ -25,6 +25,11 @@
                         <input type="text" class="form-control" name="username" value="{{ member['username'] or '' }}" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Join Date</label>
+                        <input type="date" class="form-control" name="join_date" value="{{ member['join_date'] }}">
+                        <small class="text-muted">When this member started contributing. Their expected total counts from this date.</small>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">New Password (leave blank to keep current)</label>
                         <input type="password" class="form-control" name="new_password">
                     </div>

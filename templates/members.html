@@ -29,6 +29,7 @@
                 <th>Weeks Paid</th>
                 <th>Partial Payment</th>
                 <th>Balance</th>
+                <th>Join Date</th>
                 <th>Last Login</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -58,6 +59,7 @@
                         <span class="text-muted">Up to date</span>
                     {% endif %}
                 </td>
+                <td><small>{{ member['join_date'] }}</small></td>
                 <td>
                     {% if member['last_login'] %}
                         <small class="text-muted">{{ member['last_login'].strftime('%Y-%m-%d %H:%M') }}</small>

@@ -237,10 +237,19 @@ def dashboard():
     cur.execute("SELECT COALESCE(SUM(amount), 0) as total_paid FROM contributions WHERE member_id = %s", (user_id,))
     total_paid = cur.fetchone()['total_paid']
     
-    cur.execute("SELECT COALESCE(credit, 0) as credit FROM members WHERE id = %s", (user_id,))
-    credit = cur.fetchone()['credit']
+    cur.execute("SELECT join_date, COALESCE(credit, 0) as credit FROM members WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    credit = row['credit']
+    member_join_date = row['join_date']
+
     weeks_paid = int((total_paid + credit) // 50)
-    expected_total = get_expected_total()
+
+    current_week_date = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
+    if member_join_date > current_week_date:
+        expected_weeks = 0
+    else:
+        expected_weeks = (current_week_date - member_join_date).days // 7 + 1
+    expected_total = expected_weeks * 50
     balance = total_paid + credit - expected_total
     from datetime import timedelta
     current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
@@ -322,28 +331,34 @@ def members():
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
-                   %s as expected_total,
-                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+                   (CASE WHEN m.join_date > %s::date THEN 0
+                         ELSE FLOOR((%s::date - m.join_date) / 7) + 1 END) * 50 as expected_total,
+                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)
+                    - (CASE WHEN m.join_date > %s::date THEN 0
+                            ELSE FLOOR((%s::date - m.join_date) / 7) + 1 END) * 50) as balance,
                    COALESCE(m.credit, 0) as credit,
                    m.last_login
             FROM members m
             WHERE m.status = 'active'
               AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
             ORDER BY m.name
-        ''', (get_expected_total(), get_expected_total(), f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
+        ''', (get_current_week_start(), get_current_week_start(), get_current_week_start(), get_current_week_start(), f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
     else:
         cur.execute('''
             SELECT m.*,
                    (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
-                   %s as expected_total,
-                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+                   (CASE WHEN m.join_date > %s::date THEN 0
+                         ELSE FLOOR((%s::date - m.join_date) / 7) + 1 END) * 50 as expected_total,
+                   ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)
+                    - (CASE WHEN m.join_date > %s::date THEN 0
+                            ELSE FLOOR((%s::date - m.join_date) / 7) + 1 END) * 50) as balance,
                    COALESCE(m.credit, 0) as credit,
                    m.last_login
             FROM members m
             WHERE m.status = 'active'
             ORDER BY m.name
-        ''', (get_expected_total(), get_expected_total()))
+        ''', (get_current_week_start(), get_current_week_start(), get_current_week_start(), get_current_week_start()))
 
     members_list = cur.fetchall()
     cur.close()
@@ -500,24 +515,22 @@ def record_contribution():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # Existing credit
-    cur.execute("SELECT credit FROM members WHERE id = %s", (member_id,))
-    existing_credit = float(cur.fetchone()['credit'] or 0.0)
+    cur.execute("SELECT join_date, credit FROM members WHERE id = %s", (member_id,))
+    row = cur.fetchone()
+    member_join_date = row['join_date']
+    existing_credit = float(row['credit'] or 0.0)
 
     total_available = existing_credit + amount
     new_credit = total_available
     inserted = 0
 
-    # Build list of all Sundays from KITTY_START to current week
-    start_date = KITTY_START_DATE
     current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
     weeks = []
-    d = start_date
+    d = member_join_date
     while d <= current_week:
         weeks.append(d.strftime('%Y-%m-%d'))
         d += timedelta(days=7)
 
-    # Pay the earliest unpaid weeks first
     for week_str in weeks:
         if new_credit < 50:
             break
@@ -530,10 +543,8 @@ def record_contribution():
         new_credit -= 50
         inserted += 1
 
-    # Update member credit
     cur.execute("UPDATE members SET credit = %s WHERE id = %s", (new_credit, member_id))
 
-    # Log partial payment only if credit increased
     credit_increase = new_credit - existing_credit
     if credit_increase > 0:
         cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'add')",
@@ -550,7 +561,6 @@ def record_contribution():
         message += f'Partial payment carried forward: KSH {new_credit:.0f}.'
     flash(message, 'success')
     return redirect(url_for('contributions'))
-
 @app.route('/delete_contribution/<int:contribution_id>', methods=['POST'])
 @admin_required
 def delete_contribution(contribution_id):
@@ -836,9 +846,11 @@ def edit_member(member_id):
             flash('Username already taken by another member.', 'error')
             return redirect(url_for('edit_member', member_id=member_id))
 
-        # Update member info
-        cur.execute("UPDATE members SET name = %s, phone = %s, username = %s WHERE id = %s",
-                    (name, phone, username, member_id))
+        join_date = request.form.get('join_date')
+
+        # Update name, phone, username, and join_date
+        cur.execute("UPDATE members SET name = %s, phone = %s, username = %s, join_date = %s WHERE id = %s",
+                    (name, phone, username, join_date, member_id))
         
          # If new password provided, hash and update it
         if new_password:
@@ -1048,12 +1060,15 @@ def member_detail(member_id):
         SELECT m.*,
                (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
                ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
-               %s as expected_total,
-               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
+               (CASE WHEN m.join_date > %s::date THEN 0
+                     ELSE FLOOR((%s::date - m.join_date) / 7) + 1 END) * 50 as expected_total,
+               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)
+                - (CASE WHEN m.join_date > %s::date THEN 0
+                        ELSE FLOOR((%s::date - m.join_date) / 7) + 1 END) * 50) as balance,
                COALESCE(m.credit, 0) as credit
         FROM members m
         WHERE m.id = %s
-    ''', (get_expected_total(), get_expected_total(), member_id))
+    ''', (get_current_week_start(), get_current_week_start(), get_current_week_start(), get_current_week_start(), member_id))
     member = cur.fetchone()
 
     if not member:
