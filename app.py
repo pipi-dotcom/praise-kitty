@@ -13,6 +13,8 @@ import json
 from datetime import date
 KITTY_START_DATE = date(2026, 8, 2)   # adjust to your actual start date
 app = Flask(__name__)
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect(app)
 app.secret_key = os.environ.get('SECRET_KEY', 'praise-team-kitty-2024')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SECURE'] = True

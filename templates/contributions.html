@@ -20,6 +20,7 @@
             </div>
             <div class="card-body">
                 <form action="/record_contribution" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label">Select Member *</label>
                         <select class="form-select" name="member_id" required>
