@@ -1015,32 +1015,6 @@ def member_detail(member_id):
 
     return render_template('member_detail.html', member=member, contributions=contributions, credit_transactions=credit_transactions)
 
-@app.route('/debug_member/<int:member_id>')
-@admin_required
-def debug_member(member_id):
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute("SELECT id, name, credit FROM members WHERE id = %s", (member_id,))
-    member = cur.fetchone()
-
-    cur.execute("SELECT id, amount, week_start, date_paid FROM contributions WHERE member_id = %s ORDER BY week_start", (member_id,))
-    contributions = cur.fetchall()
-
-    cur.execute("SELECT id, amount, transaction_type, date_created FROM credit_transactions WHERE member_id = %s ORDER BY date_created", (member_id,))
-    credit_txns = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return f"""
-    <h2>Debug for Member ID {member_id}</h2>
-    <h3>Member</h3>
-    <pre>{member}</pre>
-    <h3>Contributions ({len(contributions)} rows)</h3>
-    <pre>{contributions}</pre>
-    <h3>Credit Transactions ({len(credit_txns)} rows)</h3>
-    <pre>{credit_txns}</pre>
-    """
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
