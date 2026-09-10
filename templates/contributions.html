@@ -92,4 +92,53 @@
         </div>
     </div>
 </div>
+
+<!-- Credit Transactions Section -->
+<div class="card mt-4">
+    <div class="card-header bg-mustard-yellow">
+        <h5 class="mb-0"><i class="bi bi-credit-card"></i> Recent Credit Transactions</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Member</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ct in credit_transactions %}
+                    <tr>
+                        <td>{{ ct['date_created'] }}</td>
+                        <td>{{ ct['name'] }}</td>
+                        <td>
+                            {% if ct['transaction_type'] == 'add' %}
+                                <span class="badge bg-success">Added</span>
+                            {% else %}
+                                <span class="badge bg-info text-dark">Used</span>
+                            {% endif %}
+                        </td>
+                        <td>KSH {{ "%.0f"|format(ct['amount']) }}</td>
+                        <td>
+                            <a href="/delete_credit_transaction/{{ ct['id'] }}" 
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('Delete this credit transaction? Member credit will be adjusted.')">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">No credit transactions yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

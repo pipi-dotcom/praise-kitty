@@ -111,10 +111,12 @@ def get_total_contributions():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT COALESCE(SUM(amount), 0) as total FROM contributions")
-    result = cur.fetchone()
+    contributions_total = cur.fetchone()['total']
+    cur.execute("SELECT COALESCE(SUM(credit), 0) as total FROM members WHERE status = 'active'")
+    credit_total = cur.fetchone()['total']
     cur.close()
     conn.close()
-    return result['total']
+    return contributions_total + credit_total
 
 def get_total_expenses():
     conn = get_db()
@@ -383,6 +385,17 @@ def contributions():
         ORDER BY c.date_paid DESC
     ''', (week_filter,))
     history = cur.fetchall()
+
+    # Fetch recent credit transactions
+    cur.execute('''
+        SELECT ct.id, m.name, ct.amount, ct.transaction_type, ct.date_created
+        FROM credit_transactions ct
+        JOIN members m ON ct.member_id = m.id
+        ORDER BY ct.date_created DESC
+        LIMIT 20
+    ''')
+    credit_transactions = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -391,7 +404,8 @@ def contributions():
                          paid_ids=paid_ids,
                          current_week=current_week,
                          week_filter=week_filter,
-                         history=history)
+                         history=history,
+                         credit_transactions=credit_transactions)
 
 @app.route('/record_contribution', methods=['POST'])
 @admin_required
@@ -472,6 +486,41 @@ def delete_contribution(contribution_id):
     conn.close()
     flash('Contribution deleted!', 'success')
     return redirect(url_for('contributions'))
+
+@app.route('/delete_credit_transaction/<int:transaction_id>')
+@admin_required
+def delete_credit_transaction(transaction_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # Get the transaction details first
+    cur.execute("SELECT * FROM credit_transactions WHERE id = %s", (transaction_id,))
+    transaction = cur.fetchone()
+
+    if not transaction:
+        cur.close()
+        conn.close()
+        flash('Transaction not found.', 'error')
+        return redirect(request.referrer or url_for('members'))
+
+    member_id = transaction['member_id']
+    amount = transaction['amount']
+    ttype = transaction['transaction_type']
+
+    # Reverse the effect on member credit
+    if ttype == 'add':
+        cur.execute("UPDATE members SET credit = credit - %s WHERE id = %s", (amount, member_id))
+    elif ttype == 'use':
+        cur.execute("UPDATE members SET credit = credit + %s WHERE id = %s", (amount, member_id))
+
+    # Delete the transaction record
+    cur.execute("DELETE FROM credit_transactions WHERE id = %s", (transaction_id,))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('Credit transaction deleted and member credit adjusted.', 'success')
+    return redirect(request.referrer or url_for('members'))
 
 @app.route('/expenses')
 @admin_required
