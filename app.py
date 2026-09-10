@@ -13,6 +13,11 @@ import json
 from datetime import date
 KITTY_START_DATE = date(2026, 8, 2)   # adjust to your actual start date
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'praise-team-kitty-2024')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 # Decorators
 def login_required(f):
     @wraps(f)
