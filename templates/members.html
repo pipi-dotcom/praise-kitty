@@ -5,6 +5,9 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Members</h2>
+    <a href="/inactive_members" class="btn btn-outline-secondary ms-3">
+        <i class="bi bi-person-dash"></i> Inactive Members
+    </a>
     <div class="d-flex gap-2">
         <form action="/members" method="GET" class="d-flex">
             <input type="text" name="search" class="form-control me-2" placeholder="Search name, phone, username..." value="{{ search_query }}">

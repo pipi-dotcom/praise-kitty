@@ -166,6 +166,9 @@ def login():
         conn.close()
 
         if user and check_password_hash(user['password_hash'], password):
+            if user['status'] == 'inactive':
+                flash('Your account has been deactivated. Please contact the admin.', 'error')
+                return redirect(url_for('login'))
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
@@ -368,6 +371,36 @@ def deactivate_member(member_id):
     conn.close()
     flash('Member deactivated successfully. Their history is preserved.', 'success')
     return redirect(url_for('members'))
+@app.route('/inactive_members')
+@admin_required
+def inactive_members():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('''
+        SELECT m.*,
+               (SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) as total_paid,
+               ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
+               COALESCE(m.credit, 0) as credit
+        FROM members m
+        WHERE m.status = 'inactive'
+        ORDER BY m.name
+    ''')
+    members_list = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('inactive_members.html', members=members_list)
+
+@app.route('/reactivate_member/<int:member_id>')
+@admin_required
+def reactivate_member(member_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE members SET status = 'active' WHERE id = %s", (member_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('Member reactivated successfully.', 'success')
+    return redirect(url_for('inactive_members'))
 
 @app.route('/contributions')
 @admin_required

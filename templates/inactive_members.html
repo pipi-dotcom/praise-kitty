@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Inactive Members - Praise Team Kitty{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Inactive Members</h2>
+    <a href="/members" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Active Members
+    </a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="bg-royal-blue text-white">
+            <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Total Paid</th>
+                <th>Weeks Paid</th>
+                <th>Partial Payment</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in members %}
+            <tr>
+                <td>{{ member['name'] }}</td>
+                <td>{{ member['phone'] or '-' }}</td>
+                <td>KSH {{ "%.0f"|format(member['total_paid']) }}</td>
+                <td>{{ "%.0f"|format(member['weeks_paid']) }}</td>
+                <td>KSH {{ "%.0f"|format(member['credit'] or 0) }}</td>
+                <td>
+                    <a href="/reactivate_member/{{ member['id'] }}" 
+                       class="btn btn-sm btn-success"
+                       onclick="return confirm('Reactivate this member?')">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reactivate
+                    </a>
+                    <a href="/member/{{ member['id'] }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No inactive members.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
