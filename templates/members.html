@@ -29,6 +29,7 @@
                 <th>Weeks Paid</th>
                 <th>Partial Payment</th>
                 <th>Balance</th>
+                <th>Last Login</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -49,13 +50,23 @@
                 <td>{{ member['weeks_paid'] }} weeks</td>
                 <td>{{ "%.0f"|format(member['credit'] or 0) }}</td>
                 <td>
-                                 {% if member['balance'] < 0 %}
+                    {% if member['balance'] < 0 %}
                         <span class="text-danger">Owes KSH {{ "%.0f"|format(-member['balance']) }}</span>
                     {% elif member['balance'] > 0 %}
                         <span class="text-success">Overpaid KSH {{ "%.0f"|format(member['balance']) }}</span>
                     {% else %}
                         <span class="text-muted">Up to date</span>
                     {% endif %}
+                </td>
+                <td>
+                    {% if member['last_login'] %}
+                        <small class="text-muted">{{ member['last_login'].strftime('%Y-%m-%d %H:%M') }}</small>
+                    {% else %}
+                        <small class="text-muted">Never</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-success">{{ member['status'] }}</span>
                 </td>
                 <td>
                     <span class="badge bg-success">{{ member['status'] }}</span>

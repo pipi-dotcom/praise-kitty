@@ -77,7 +77,8 @@ def init_db():
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS username TEXT UNIQUE")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS password_hash TEXT")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE")
-    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS credit REAL DEFAULT 0.0")    
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS credit REAL DEFAULT 0.0")
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")   
 
     # Create contributions and expenses tables (unchanged)
     cur.execute('''
@@ -189,6 +190,15 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
+
+            # Record last login time
+            conn2 = get_db()
+            cur2 = conn2.cursor()
+            cur2.execute("UPDATE members SET last_login = CURRENT_TIMESTAMP WHERE id = %s", (user['id'],))
+            conn2.commit()
+            cur2.close()
+            conn2.close()
+
             flash('Logged in successfully!', 'success')
             if user['is_admin']:
                 return redirect(url_for('index'))
@@ -311,7 +321,8 @@ def members():
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
                    %s as expected_total,
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
-                   COALESCE(m.credit, 0) as credit
+                   COALESCE(m.credit, 0) as credit,
+                   m.last_login
             FROM members m
             WHERE m.status = 'active'
               AND (m.name ILIKE %s OR m.phone ILIKE %s OR m.username ILIKE %s)
@@ -324,7 +335,8 @@ def members():
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0)) / 50 as weeks_paid,
                    %s as expected_total,
                    ((SELECT COALESCE(SUM(amount), 0) FROM contributions c WHERE c.member_id = m.id) + COALESCE(m.credit, 0) - %s) as balance,
-                   COALESCE(m.credit, 0) as credit
+                   COALESCE(m.credit, 0) as credit,
+                   m.last_login
             FROM members m
             WHERE m.status = 'active'
             ORDER BY m.name
