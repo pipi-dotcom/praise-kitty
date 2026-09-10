@@ -83,12 +83,14 @@
                         <td>KSH {{ "%.0f"|format(contrib['amount']) }}</td>
                         <td>{{ contrib['date_paid'] }}</td>
                         <td>
-                            <a href="/delete_contribution/{{ contrib['id'] }}" 
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this contribution?')">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </td>
+    <form action="/delete_contribution/{{ contrib['id'] }}" method="POST" 
+          onsubmit="return confirm('Delete this contribution?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash"></i>
+        </button>
+    </form>
+</td>
                     </tr>
                     {% else %}
                     <tr>
@@ -123,13 +125,15 @@
                         <td>{{ ct['date_created'] }}</td>
                         <td>{{ ct['transaction_type'] }}</td>
                         <td>KSH {{ "%.0f"|format(ct['amount']) }}</td>
-                        <td>
-                            <a href="/delete_credit_transaction/{{ ct['id'] }}" 
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this partial payment?')">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </td>
+<td>
+    <form action="/delete_credit_transaction/{{ ct['id'] }}" method="POST" 
+          onsubmit="return confirm('Delete this partial payment?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash"></i>
+        </button>
+    </form>
+</td>
                     </tr>
                     {% else %}
                     <tr>

@@ -60,20 +60,24 @@
                 <td>
                     <span class="badge bg-success">{{ member['status'] }}</span>
                 </td>
-                <td>
+<td>
     <a href="/edit_member/{{ member['id'] }}" class="btn btn-sm btn-primary me-1">
         <i class="bi bi-pencil"></i>
     </a>
-    <a href="/deactivate_member/{{ member['id'] }}" 
-       class="btn btn-sm btn-warning me-1"
-       onclick="return confirm('Deactivate this member? They will no longer appear in active lists, but their contributions are kept.')">
-        <i class="bi bi-pause-circle"></i>
-    </a>
-    <a href="/delete_member/{{ member['id'] }}" 
-       class="btn btn-sm btn-danger"
-       onclick="return confirm('PERMANENTLY DELETE this member and ALL their contributions? This cannot be undone!')">
-        <i class="bi bi-trash"></i>
-    </a>
+    <form action="/deactivate_member/{{ member['id'] }}" method="POST" style="display:inline;" 
+          onsubmit="return confirm('Deactivate this member?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-warning me-1">
+            <i class="bi bi-pause-circle"></i>
+        </button>
+    </form>
+    <form action="/delete_member/{{ member['id'] }}" method="POST" style="display:inline;" 
+          onsubmit="return confirm('PERMANENTLY DELETE this member and ALL their contributions?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash"></i>
+        </button>
+    </form>
 </td>
             </tr>
             {% else %}

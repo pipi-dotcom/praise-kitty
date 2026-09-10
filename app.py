@@ -14,7 +14,16 @@ from datetime import date
 KITTY_START_DATE = date(2026, 8, 2)   # adjust to your actual start date
 app = Flask(__name__)
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 csrf = CSRFProtect(app)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["300 per day", "60 per hour"],
+    storage_uri="memory://"
+)
 app.secret_key = os.environ.get('SECRET_KEY', 'praise-team-kitty-2024')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -161,6 +170,7 @@ def get_expected_total():
     """Expected total contribution per member."""
     return get_expected_weeks() * 50.0
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -356,7 +366,7 @@ def add_member():
         flash('Name, username, and password are required!', 'error')
     return redirect(url_for('members'))
 
-@app.route('/delete_member/<int:member_id>')
+@app.route('/delete_member/<int:member_id>', methods=['POST'])
 @admin_required
 def delete_member(member_id):
     conn = get_db()
@@ -367,7 +377,7 @@ def delete_member(member_id):
     conn.close()
     flash('Member deleted!', 'success')
     return redirect(url_for('members'))
-@app.route('/deactivate_member/<int:member_id>')
+@app.route('/deactivate_member/<int:member_id>', methods=['POST'])
 @admin_required
 def deactivate_member(member_id):
     conn = get_db()
@@ -397,7 +407,7 @@ def inactive_members():
     conn.close()
     return render_template('inactive_members.html', members=members_list)
 
-@app.route('/reactivate_member/<int:member_id>')
+@app.route('/reactivate_member/<int:member_id>', methods=['POST'])
 @admin_required
 def reactivate_member(member_id):
     conn = get_db()
@@ -526,7 +536,7 @@ def record_contribution():
     flash(message, 'success')
     return redirect(url_for('contributions'))
 
-@app.route('/delete_contribution/<int:contribution_id>')
+@app.route('/delete_contribution/<int:contribution_id>', methods=['POST'])
 @admin_required
 def delete_contribution(contribution_id):
     conn = get_db()
@@ -538,7 +548,7 @@ def delete_contribution(contribution_id):
     flash('Contribution deleted!', 'success')
     return redirect(url_for('contributions'))
 
-@app.route('/delete_credit_transaction/<int:transaction_id>')
+@app.route('/delete_credit_transaction/<int:transaction_id>', methods=['POST'])
 @admin_required
 def delete_credit_transaction(transaction_id):
     conn = get_db()
@@ -622,7 +632,7 @@ def add_expense():
 
     return redirect(url_for('expenses'))
 
-@app.route('/delete_expense/<int:expense_id>')
+@app.route('/delete_expense/<int:expense_id>', methods=['POST'])
 @admin_required
 def delete_expense(expense_id):
     conn = get_db()
@@ -972,6 +982,7 @@ def manifest():
 def service_worker():
     return app.send_static_file('sw.js')
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per hour")
 def register():
     if request.method == 'POST':
         name = request.form.get('name')

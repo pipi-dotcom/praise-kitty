@@ -31,15 +31,17 @@
                 <td>{{ "%.0f"|format(member['weeks_paid']) }}</td>
                 <td>KSH {{ "%.0f"|format(member['credit'] or 0) }}</td>
                 <td>
-                    <a href="/reactivate_member/{{ member['id'] }}" 
-                       class="btn btn-sm btn-success"
-                       onclick="return confirm('Reactivate this member?')">
-                        <i class="bi bi-arrow-counterclockwise"></i> Reactivate
-                    </a>
-                    <a href="/member/{{ member['id'] }}" class="btn btn-sm btn-primary">
-                        <i class="bi bi-eye"></i>
-                    </a>
-                </td>
+    <form action="/reactivate_member/{{ member['id'] }}" method="POST" style="display:inline;"
+          onsubmit="return confirm('Reactivate this member?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-success">
+            <i class="bi bi-arrow-counterclockwise"></i> Reactivate
+        </button>
+    </form>
+    <a href="/member/{{ member['id'] }}" class="btn btn-sm btn-primary">
+        <i class="bi bi-eye"></i>
+    </a>
+</td>
             </tr>
             {% else %}
             <tr>

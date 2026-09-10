@@ -73,13 +73,15 @@
                                 <td>KSH {{ "%.0f"|format(record['amount']) }}</td>
                                 <td>{{ record['week_start'] }}</td>
                                 <td>{{ record['date_paid'] }}</td>
-                                <td>
-                                    <a href="/delete_contribution/{{ record['id'] }}" 
-                                       class="btn btn-sm btn-danger"
-                                       onclick="return confirm('Delete this contribution?')">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
-                                </td>
+                               <td>
+    <form action="/delete_contribution/{{ record['id'] }}" method="POST" 
+          onsubmit="return confirm('Delete this contribution?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash"></i>
+        </button>
+    </form>
+</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -124,13 +126,15 @@
                             {% endif %}
                         </td>
                         <td>KSH {{ "%.0f"|format(ct['amount']) }}</td>
-                        <td>
-                            <a href="/delete_credit_transaction/{{ ct['id'] }}" 
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this credit transaction? Member credit will be adjusted.')">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </td>
+                      <td>
+    <form action="/delete_credit_transaction/{{ ct['id'] }}" method="POST" 
+          onsubmit="return confirm('Delete this credit transaction?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash"></i>
+        </button>
+    </form>
+</td>
                     </tr>
                     {% else %}
                     <tr>
