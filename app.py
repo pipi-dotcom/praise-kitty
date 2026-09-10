@@ -1047,7 +1047,25 @@ def member_detail(member_id):
     conn.close()
 
     return render_template('member_detail.html', member=member, contributions=contributions, credit_transactions=credit_transactions)
+@app.route('/reset_all_data')
+@admin_required
+def reset_all_data():
+    conn = get_db()
+    cur = conn.cursor()
 
+    # Delete in order to respect foreign keys
+    cur.execute("DELETE FROM credit_transactions")
+    cur.execute("DELETE FROM contributions")
+    cur.execute("DELETE FROM expenses")
+    # Delete all members except admins
+    cur.execute("DELETE FROM members WHERE is_admin = FALSE")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash('All member data, contributions, expenses, and partial payments have been cleared. Your admin account is intact.', 'success')
+    return redirect(url_for('members'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
