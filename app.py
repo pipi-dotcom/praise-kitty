@@ -54,6 +54,9 @@ app.secret_key = os.environ.get('SECRET_KEY', 'praise-team-kitty-2024')
 
 def get_db():
     conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
+    cur = conn.cursor()
+    cur.execute("SET TIME ZONE 'Africa/Nairobi'")
+    cur.close()
     return conn
 
 def init_db():
@@ -1082,5 +1085,18 @@ def member_detail(member_id):
                            member=member,
                            contributions=contributions,
                            credit_transactions=credit_transactions)
+@app.route('/fix_timezone')
+@admin_required
+def fix_timezone():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE contributions SET date_paid = date_paid + INTERVAL '3 hours'")
+    cur.execute("UPDATE expenses SET date_recorded = date_recorded + INTERVAL '3 hours'")
+    cur.execute("UPDATE credit_transactions SET date_created = date_created + INTERVAL '3 hours'")
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('Timezone adjusted for existing records.', 'success')
+    return redirect(url_for('members'))
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
