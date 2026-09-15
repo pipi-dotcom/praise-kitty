@@ -193,6 +193,7 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
+            session.permanent = True
 
             # Record last login time
             conn2 = get_db()
