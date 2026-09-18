@@ -469,7 +469,7 @@ def reactivate_member(member_id):
     flash('Member reactivated successfully.', 'success')
     return redirect(url_for('inactive_members'))
 
-@app.route('/register')
+@app.route('/sunday_register')
 @admin_required
 def sunday_register():
     current_week = get_current_week_start()
@@ -487,7 +487,7 @@ def sunday_register():
     cur.close()
     conn.close()
 
-    return render_template('register.html',
+    return render_template('sunday_register.html',
                            members=members_list,
                            paid_ids=paid_ids,
                            current_week=current_week)

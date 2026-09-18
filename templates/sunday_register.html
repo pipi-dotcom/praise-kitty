@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Sunday Register - Praise Team Kitty{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Sunday Register</h2>
+    <span class="badge bg-royal-blue p-2">Week: {{ current_week }}</span>
+</div>
+
+<p class="text-muted">Tap "Paid 50" next to each member as they pay. Green means already recorded.</p>
+
+<div class="row g-3">
+    {% for member in members %}
+    <div class="col-md-4 col-6">
+        <div class="card {% if member['id'] in paid_ids %}border-success{% else %}border-secondary{% endif %}">
+            <div class="card-body text-center p-2">
+                <h6 class="mb-2" style="font-size: 0.9rem;">{{ member['name'] }}</h6>
+                {% if member['id'] in paid_ids %}
+                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Paid</span>
+                {% else %}
+                    <form action="/record_contribution" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="member_id" value="{{ member['id'] }}">
+                        <input type="hidden" name="amount" value="50">
+                        <input type="hidden" name="week_start" value="{{ current_week }}">
+                        <button type="submit" class="btn btn-sm btn-success w-100">
+                            Paid 50
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
