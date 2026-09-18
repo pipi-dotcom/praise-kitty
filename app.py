@@ -469,6 +469,28 @@ def reactivate_member(member_id):
     flash('Member reactivated successfully.', 'success')
     return redirect(url_for('inactive_members'))
 
+@app.route('/register')
+@admin_required
+def sunday_register():
+    current_week = get_current_week_start()
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # All active members (including admin if they contribute)
+    cur.execute("SELECT * FROM members WHERE status='active' ORDER BY name")
+    members_list = cur.fetchall()
+
+    # Members who already paid this week
+    cur.execute("SELECT member_id FROM contributions WHERE week_start = %s", (current_week,))
+    paid_ids = [row['member_id'] for row in cur.fetchall()]
+
+    cur.close()
+    conn.close()
+
+    return render_template('register.html',
+                           members=members_list,
+                           paid_ids=paid_ids,
+                           current_week=current_week)
 @app.route('/contributions')
 @admin_required
 def contributions():
