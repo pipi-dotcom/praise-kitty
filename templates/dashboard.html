@@ -5,6 +5,16 @@
 {% block content %}
 <h2 class="mb-4">Welcome, {{ member['name'] }}!</h2>
 
+{% if latest_announcement %}
+<div class="alert alert-info d-flex align-items-start">
+    <i class="bi bi-megaphone-fill me-2"></i>
+    <div>
+        <strong>{{ latest_announcement['title'] }}</strong><br>
+        {{ latest_announcement['message'] }}
+    </div>
+</div>
+{% endif %}
+
 <!-- Stat Cards -->
 <div class="row g-3 mb-4">
     <div class="col-md-4 col-6">

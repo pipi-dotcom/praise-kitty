@@ -106,6 +106,15 @@ def init_db():
     ''')
 
     cur.execute('''
+        CREATE TABLE IF NOT EXISTS announcements (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS credit_transactions (
             id SERIAL PRIMARY KEY,
             member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
@@ -253,13 +262,18 @@ def dashboard():
     expected_total = expected_weeks * 50
     balance = total_paid + credit - expected_total
     from datetime import timedelta
+    from datetime import timedelta
     current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
     next_due_date = (current_week + timedelta(days=7)).strftime('%Y-%m-%d')
-    
+
+    # Latest announcement
+    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC LIMIT 1")
+    latest_announcement = cur.fetchone()
+
     cur.close()
     conn.close()
     
-    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance, next_due_date=next_due_date)
+    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance, next_due_date=next_due_date, latest_announcement=latest_announcement)
 @app.route('/')
 @admin_required
 def index():
@@ -307,6 +321,10 @@ def index():
     ''')
     recent_partial_payments = cur.fetchall()
 
+    # Latest announcement
+    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC LIMIT 1")
+    latest_announcement = cur.fetchone()
+
     cur.close()
     conn.close()
 
@@ -319,7 +337,8 @@ def index():
                          progress_percent=progress_percent,
                          recent_contributions=recent_contributions,
                          recent_expenses=recent_expenses,
-                         recent_partial_payments=recent_partial_payments)
+                         recent_partial_payments=recent_partial_payments,
+                         latest_announcement=latest_announcement)
 @app.route('/members')
 @admin_required
 def members():
@@ -1101,6 +1120,45 @@ def member_detail(member_id):
                            member=member,
                            contributions=contributions,
                            credit_transactions=credit_transactions)
+@app.route('/announcements')
+@admin_required
+def announcements():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC")
+    all_announcements = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('announcements.html', announcements=all_announcements)
+
+@app.route('/add_announcement', methods=['POST'])
+@admin_required
+def add_announcement():
+    title = request.form.get('title')
+    message = request.form.get('message')
+    if title and message:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO announcements (title, message) VALUES (%s, %s)", (title, message))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Announcement posted!', 'success')
+    else:
+        flash('Title and message are required.', 'error')
+    return redirect(url_for('announcements'))
+
+@app.route('/delete_announcement/<int:announcement_id>', methods=['POST'])
+@admin_required
+def delete_announcement(announcement_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM announcements WHERE id = %s", (announcement_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('Announcement deleted.', 'success')
+    return redirect(url_for('announcements'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
