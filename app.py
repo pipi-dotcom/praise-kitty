@@ -393,11 +393,8 @@ def index():
 @admin_required
 def members():
     search_query = request.args.get('search', '').strip()
-    conn = get_db()
-        search_query = request.args.get('search', '').strip()
 
-    # Auto-redeem credit for all members
-    all_member_ids = []
+    # Auto-redeem credit for all active members
     conn_tmp = get_db()
     cur_tmp = conn_tmp.cursor()
     cur_tmp.execute("SELECT id FROM members WHERE status = 'active'")
@@ -448,7 +445,6 @@ def members():
     cur.close()
     conn.close()
     return render_template('members.html', members=members_list, search_query=search_query)
-
 @app.route('/add_member', methods=['POST'])
 @app.route('/add_member', methods=['POST'])
 @admin_required
