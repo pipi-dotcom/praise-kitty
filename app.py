@@ -323,7 +323,7 @@ def dashboard():
     cur.close()
     conn.close()
     
-    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance, next_due_date=next_due_date, latest_announcement=latest_announcement)
+    return render_template('dashboard.html', member=member, contributions=contributions, total_paid=total_paid, weeks_paid=weeks_paid, credit=credit, balance=balance, next_due_date=next_due_date, all_announcements=all_announcements)
 @app.route('/')
 @admin_required
 def index():
@@ -388,7 +388,7 @@ def index():
                          recent_contributions=recent_contributions,
                          recent_expenses=recent_expenses,
                          recent_partial_payments=recent_partial_payments,
-                         latest_announcement=latest_announcement)
+                         all_announcements=all_announcements)
 @app.route('/members')
 @admin_required
 def members():
