@@ -170,6 +170,53 @@ def get_current_week_start():
     # Calculate days since Sunday (Python weekday: Monday=0, Sunday=6)
     days_since_sunday = (today.weekday() + 1) % 7
     return (today - timedelta(days=days_since_sunday)).strftime('%Y-%m-%d')
+def redeem_credit_for_member(member_id):
+    """Convert any >=50 credit into weekly contributions, starting from earliest unpaid week."""
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT join_date, COALESCE(credit, 0) as credit FROM members WHERE id = %s", (member_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        conn.close()
+        return 0
+
+    member_join_date = row['join_date']
+    credit = float(row['credit'])
+
+    if credit < 50:
+        cur.close()
+        conn.close()
+        return 0
+
+    current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
+    weeks = []
+    d = member_join_date
+    while d <= current_week:
+        weeks.append(d.strftime('%Y-%m-%d'))
+        d += timedelta(days=7)
+
+    redeemed = 0
+    for week_str in weeks:
+        if credit < 50:
+            break
+        cur.execute("SELECT id FROM contributions WHERE member_id = %s AND week_start = %s",
+                    (member_id, week_str))
+        if cur.fetchone():
+            continue
+        cur.execute("INSERT INTO contributions (member_id, amount, week_start) VALUES (%s, %s, %s)",
+                    (member_id, 50.0, week_str))
+        credit -= 50
+        redeemed += 1
+        cur.execute("INSERT INTO credit_transactions (member_id, amount, transaction_type) VALUES (%s, %s, 'use')",
+                    (member_id, 50.0))
+
+    cur.execute("UPDATE members SET credit = %s WHERE id = %s", (credit, member_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redeemed
 def get_expected_weeks():
     """Number of Sundays from KITTY_START_DATE to current week, inclusive."""
     current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
@@ -231,6 +278,7 @@ def logout():
 @login_required
 def dashboard():
     user_id = session['user_id']
+    redeem_credit_for_member(user_id)
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM members WHERE id = %s", (user_id,))
@@ -266,9 +314,11 @@ def dashboard():
     current_week = datetime.strptime(get_current_week_start(), '%Y-%m-%d').date()
     next_due_date = (current_week + timedelta(days=7)).strftime('%Y-%m-%d')
 
-    # Latest announcement
-    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC LIMIT 1")
-    latest_announcement = cur.fetchone()
+    # All announcements
+    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC")
+    all_announcements = cur.fetchall()    # All announcements
+    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC")
+    all_announcements = cur.fetchall()
 
     cur.close()
     conn.close()
@@ -321,9 +371,9 @@ def index():
     ''')
     recent_partial_payments = cur.fetchall()
 
-    # Latest announcement
-    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC LIMIT 1")
-    latest_announcement = cur.fetchone()
+    # All announcements
+    cur.execute("SELECT * FROM announcements ORDER BY date_created DESC")
+    all_announcements = cur.fetchall()
 
     cur.close()
     conn.close()
@@ -343,6 +393,20 @@ def index():
 @admin_required
 def members():
     search_query = request.args.get('search', '').strip()
+    conn = get_db()
+        search_query = request.args.get('search', '').strip()
+
+    # Auto-redeem credit for all members
+    all_member_ids = []
+    conn_tmp = get_db()
+    cur_tmp = conn_tmp.cursor()
+    cur_tmp.execute("SELECT id FROM members WHERE status = 'active'")
+    all_member_ids = [row[0] for row in cur_tmp.fetchall()]
+    cur_tmp.close()
+    conn_tmp.close()
+    for mid in all_member_ids:
+        redeem_credit_for_member(mid)
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -1095,6 +1159,7 @@ def register():
 @app.route('/member/<int:member_id>')
 @admin_required
 def member_detail(member_id):
+    redeem_credit_for_member(member_id)
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
